@@ -22,7 +22,7 @@ from tp.data import zones
 from tp.errors import TPError
 from tp.eval import metrics
 from tp.exp import results
-from tp.models import arima, naive
+from tp.models import arima, lstm, naive
 from tp.prep import series as series_mod
 from tp.prep.split import cut_until
 from tp.seed import set_seed
@@ -361,7 +361,21 @@ def _run_arima(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.Da
     return _pred_frame(data.loc[y_pred.index], y_pred.to_numpy(), seed=-1)
 
 
-MODELS = {"naive": _run_naive, "arima": _run_arima}
+def _run_lstm(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.DataFrame:
+    targets = data.index[cfg["lstm.window"] :]
+    frames = []
+    for seed in config.LSTM_SEEDS:
+        set_seed(seed, cfg["runtime.threads"])
+        model = lstm.train_lstm(data, cfg, seed, check_time)
+        lstm.save_model(model, folder / "model", seed)
+        lstm.save_curve(model.history, model.best_epoch, folder / "curves", seed)
+        y_pred = lstm.predict_lstm(model, data, targets)
+        frames.append(_pred_frame(data.loc[targets], y_pred.to_numpy(), seed=seed))
+        log.info("seed %d: best epoch %d / %d", seed, model.best_epoch, len(model.history))
+    return pd.concat(frames, ignore_index=True)
+
+
+MODELS = {"naive": _run_naive, "arima": _run_arima, "lstm": _run_lstm}
 
 
 def _reference_times(index: dict[str, Experiment], cfg: dict) -> pd.DatetimeIndex | None:
@@ -466,8 +480,17 @@ def _prepare_run(cfg: dict, retry: bool) -> tuple[dict, PhaseConfig, str | None,
     phase = config.load_phase(cfg["phase"])
     commit, dirty = git_state()
     check_rules(cfg, index, phase, retry, dirty)
-    series_mod.load_series(phase, zone_square(phase, cfg["zone_rank"]))  # E-2003 before any folder
+    check_data(cfg, phase)
     return index, phase, commit, dirty
+
+
+def check_data(cfg: dict, phase: PhaseConfig) -> None:
+    """Data-dependent checks that must pass before any folder is created (E-2003, E-4001)."""
+    series = series_mod.load_series(phase, zone_square(phase, cfg["zone_rank"]))
+    if cfg["model.type"] == "lstm":
+        n = lstm.count_train_samples(cut_until(series, "val"), cfg["lstm.window"])
+        if n < cfg["lstm.batch"]:
+            raise _rule(f"LSTM 학습 샘플 수 {n} < lstm.batch {cfg['lstm.batch']}")
 
 
 def run_from_file(path: str | Path, retry: bool = False) -> Path:
@@ -519,7 +542,7 @@ def sweep(parent_id: str, key: str, values_json: str, start_id: str, name: str,
                                      for c in children}}  # fmt: skip
             phase = config.load_phase(cfg["phase"])
             check_rules(cfg, simulated, phase, retry=False, dirty=dirty)
-            series_mod.load_series(phase, zone_square(phase, cfg["zone_rank"]))
+            check_data(cfg, phase)
             children.append(cfg)
 
         outcomes = []
