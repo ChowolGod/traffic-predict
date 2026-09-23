@@ -1,0 +1,25 @@
+id: EXP-010
+name: lstm-init
+phase: dev
+parent: EXP-001
+changed: model.type
+reason: 비교 순서(seasonal naive → ARIMA → LSTM)의 세 번째 계열. 기획서 4.2 초기 설정으로 시작한다
+hypothesis: 지난 하루(144칸) 창에서 직전 흐름과 하루 모양을 함께 배우므로 lag-1(101.44)보다는 낫다. 다만 dev train이
+  10일(학습 샘플 약 1300개)뿐이라 ARIMA 최선(EXP-009 93.82)을 넘기는 어렵고, 시드 간 표준편차가 ARIMA와의 차이보다
+  클 수 있다
+zone_rank: 1
+model:
+  type: lstm
+lstm:
+  window: 144
+  hidden: 64
+  layers: 1
+  dropout: 0.0
+  lr: 0.001
+  batch: 256
+  max_epochs: 50
+  patience: 5
+  scaler: standard
+runtime:
+  time_limit_min: 30
+  threads: 4
