@@ -336,6 +336,30 @@ def test_results_marks_corrupt_folder(prepared):
     assert table.set_index("exp_id").loc["EXP-002", "status"] == "corrupt"
 
 
+@pytest.mark.parametrize(
+    ("filename", "content"),
+    [
+        ("config.yaml", ""),  # empty YAML -> None
+        ("config.yaml", "- a list\n"),
+        ("config.yaml", "name: x\n"),  # required keys missing
+        ("meta.json", "{}"),  # no status
+        ("meta.json", "[]"),
+        ("metrics.json", "{not json"),
+        ("metrics.json", "{}"),
+    ],
+)
+def test_results_marks_unreadable_folder_corrupt_and_keeps_the_rest(prepared, filename, content):
+    # I-04: a folder that cannot be read is marked corrupt and skipped; the command still succeeds
+    assert run(ROOT_CFG) == 0
+    root = next(config.EXPERIMENTS_DIR.glob("EXP-001_*"))
+    shutil.copytree(root, config.EXPERIMENTS_DIR / "EXP-002_x")
+    (config.EXPERIMENTS_DIR / "EXP-002_x" / filename).write_text(content, encoding="utf-8")
+    assert cli.main(["results"]) == 0
+    table = pd.read_csv(config.RESULTS_DIR / "results.csv").set_index("exp_id")
+    assert table.loc["EXP-002", "status"] == "corrupt"
+    assert table.loc["EXP-001", "status"] == "completed"
+
+
 # --- I-03 sweep --------------------------------------------------------------------------
 def sweep_args(values: str) -> list[str]:
     return [

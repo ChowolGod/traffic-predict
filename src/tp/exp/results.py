@@ -105,6 +105,36 @@ def _decision(folder: Path, cfg: dict, meta: dict, series: _Series) -> dict:
     return decision_by_seed(val, thr, cfg.get("horizon", 1), series.dcfg.merge_gap)
 
 
+# A folder whose files are missing, malformed or lack required fields (I-04: status=corrupt).
+UNREADABLE = (OSError, ValueError, KeyError, TypeError, AttributeError, yaml.YAMLError)
+
+
+def _row(folder: Path, series: "_Series") -> dict:
+    row = dict.fromkeys(COLUMNS)
+    row["exp_id"] = folder.name[:7]
+    meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+    cfg = yaml.safe_load((folder / "config.yaml").read_text(encoding="utf-8"))
+    cfg.setdefault("horizon", 1)  # v1 experiments were all 1-step
+    row.update(
+        name=cfg["name"], phase=cfg["phase"], parent=cfg["parent"], changed=cfg["changed"],
+        model_type=cfg["model"]["type"], horizon=cfg["horizon"], zone_rank=cfg["zone_rank"],
+        square_id=meta.get("square_id"), compare_group=meta.get("compare_group"),
+        status=meta["status"], post_test=meta["post_test"], duration_s=meta["duration_s"],
+    )  # fmt: skip
+    row["_lag"] = (cfg.get("naive") or {}).get("lag")
+    metrics_path = folder / "metrics.json"
+    if meta["status"] == "completed" and metrics_path.is_file():
+        m = json.loads(metrics_path.read_text(encoding="utf-8"))
+        std = m.get("val_std") or {}
+        row.update(
+            val_mae=m["val"]["mae"], val_rmse=m["val"]["rmse"],
+            val_rel_mae=m["val"]["rel_mae"], n=m["val"]["n"],
+            val_mae_std=std.get("mae"), val_rmse_std=std.get("rmse"),
+        )  # fmt: skip
+        row.update(_decision(folder, cfg, meta, series))
+    return row
+
+
 def load_rows(dcfg: decision.DecisionConfig | None = None) -> list[dict]:
     rows = []
     if not config.EXPERIMENTS_DIR.is_dir():
@@ -113,34 +143,12 @@ def load_rows(dcfg: decision.DecisionConfig | None = None) -> list[dict]:
     for folder in sorted(config.EXPERIMENTS_DIR.glob("EXP-*_*")):
         if not folder.is_dir():
             continue
-        row = dict.fromkeys(COLUMNS)
-        row["exp_id"] = folder.name[:7]
         try:
-            meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
-            cfg = yaml.safe_load((folder / "config.yaml").read_text(encoding="utf-8"))
-        except (OSError, ValueError, yaml.YAMLError):
-            row["status"] = "corrupt"
-            rows.append(row)
-            continue
-        cfg.setdefault("horizon", 1)  # v1 experiments were all 1-step
-        row.update(
-            name=cfg["name"], phase=cfg["phase"], parent=cfg["parent"], changed=cfg["changed"],
-            model_type=cfg["model"]["type"], horizon=cfg["horizon"], zone_rank=cfg["zone_rank"],
-            square_id=meta.get("square_id"), compare_group=meta.get("compare_group"),
-            status=meta["status"], post_test=meta["post_test"], duration_s=meta["duration_s"],
-        )  # fmt: skip
-        row["_lag"] = (cfg.get("naive") or {}).get("lag")
-        metrics_path = folder / "metrics.json"
-        if meta["status"] == "completed" and metrics_path.is_file():
-            m = json.loads(metrics_path.read_text(encoding="utf-8"))
-            std = m.get("val_std") or {}
-            row.update(
-                val_mae=m["val"]["mae"], val_rmse=m["val"]["rmse"],
-                val_rel_mae=m["val"]["rel_mae"], n=m["val"]["n"],
-                val_mae_std=std.get("mae"), val_rmse_std=std.get("rmse"),
-            )  # fmt: skip
-            row.update(_decision(folder, cfg, meta, series))
-        rows.append(row)
+            rows.append(_row(folder, series))
+        except UNREADABLE as exc:
+            log.warning("읽을 수 없는 실험 폴더(corrupt): %s (%s: %s)",
+                        folder.name, type(exc).__name__, exc)  # fmt: skip
+            rows.append(dict.fromkeys(COLUMNS) | {"exp_id": folder.name[:7], "status": "corrupt"})
     return rows
 
 
