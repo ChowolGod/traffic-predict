@@ -45,7 +45,7 @@ def test_only_alarms_issued_before_start_count():
     # episode [7, 9], h=1: an alarm for τ=9 is issued at 8 > 7 → too late → missed
     late = metrics(Y_TRUE, pred_with_alarms([9]), horizon=1)
     assert late["missed"] == 2 and late["lead_min"] is None
-    # h=3: τ=8 is issued at 5 ≤ 7 → detected with lead (7 - 5) = 2 slots
+    # h=3: τ=8 is issued at 5 < 7 (v2.1: strictly before s) → detected with lead (7 - 5) = 2 slots
     early = metrics(Y_TRUE, pred_with_alarms([8]), horizon=3)
     assert early["missed"] == 1 and early["lead_min"] == 20.0
 
@@ -140,9 +140,17 @@ def test_results_table_has_decision_columns_and_follows_config(workspace, monkey
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     path.write_text(yaml.safe_dump({**data, "threshold_ratio": 0.35}), encoding="utf-8")
     from tp.exp import registry
+    from tp.models import arima, lstm, naive
 
-    monkeypatch.setattr(registry, "_execute", lambda *a, **k: pytest.fail("재학습함"))
+    # No retraining or re-prediction: every model entry point fails if called, and the
+    # experiment folders (models, predictions, metrics) stay byte-identical.
+    for module, name in ((registry, "_execute"), (naive, "predict_naive"),
+                         (arima, "fit_arima"), (arima, "predict_arima"),
+                         (lstm, "train_lstm"), (lstm, "predict_lstm")):  # fmt: skip
+        monkeypatch.setattr(module, name, lambda *a, **k: pytest.fail("재학습·재예측함"))
+    snapshot = {p: p.read_bytes() for p in config.EXPERIMENTS_DIR.rglob("*") if p.is_file()}
     assert cli.main(["results"]) == 0
+    assert {p: p.read_bytes() for p in config.EXPERIMENTS_DIR.rglob("*") if p.is_file()} == snapshot
     after = pd.read_csv(config.RESULTS_DIR / "results.csv").set_index("exp_id")
     assert after.loc["EXP-002", "dec_threshold"] == pytest.approx(before / 2)
 

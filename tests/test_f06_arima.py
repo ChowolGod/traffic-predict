@@ -67,6 +67,7 @@ def test_predict_does_not_refit(monkeypatch):
 # --- 1스텝 예측: t의 예측은 y[t] 이후 값에 의존하지 않음 -----------------------------------
 @pytest.mark.parametrize("seasonal", ["none", "diff144", "fourier"])
 def test_one_step_is_causal(seasonal):
+    # h=1 only; h>1 causality is tested in test_f12_horizon
     s = synthetic()
     params, base = fit_predict(s, cfg(seasonal))
     k = s.index[s["segment"] == "val"][50]

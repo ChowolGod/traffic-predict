@@ -96,6 +96,7 @@ def test_early_stopping_stops_after_patience(monkeypatch):
 
 
 def test_one_step_is_causal():
+    # h=1 only; h>1 causality is tested in test_f12_horizon
     s = synthetic()
     model = train(s)
     targets = s.index[24:]

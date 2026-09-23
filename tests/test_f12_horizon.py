@@ -135,6 +135,25 @@ def test_old_experiment_without_horizon_is_read_as_1(prepared):
     path.write_text(text, encoding="utf-8")  # simulate a v1 experiment folder
     assert "horizon" not in text
     assert registry.scan()["EXP-001"].config["horizon"] == 1
+    # results reads the same folder as horizon 1 and still computes decision metrics
+    from tp.exp import results
+
+    rows = results.load_rows(config.load_decision())
+    row = next(r for r in rows if r["exp_id"] == "EXP-001")
+    assert row["status"] == "completed" and row["horizon"] == 1
+    assert row["dec_episodes"] is not None
+
+
+def test_old_lstm_config_without_horizon_loads_as_1(tmp_path):
+    s = synthetic()
+    model = train_lstm(s, 1)
+    lstm.save_model(model, tmp_path, seed=0)
+    loaded = lstm.load_model(tmp_path, seed=0, cfg=dict(SMALL))  # v1 config: no horizon key
+    assert "horizon" not in SMALL and loaded.horizon == 1
+    targets = s.index[SMALL["lstm.window"] :]
+    pd.testing.assert_series_equal(
+        lstm.predict_lstm(loaded, s, targets), lstm.predict_lstm(model, s, targets)
+    )
 
 
 def test_changed_horizon_child_runs_with_exact_naive_values(prepared):
