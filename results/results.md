@@ -15,3 +15,4 @@ val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니�
 | EXP-009 | arima-order-5-1-5 | dev | EXP-003 | arima.order | arima | 1 | 5259 | 93.8156 |  | 136.9472 |  | 0.1862 | 576 | e9ffdf9f | completed | False | 2.2190 |
 | EXP-010 | lstm-init | dev | EXP-001 | model.type | lstm | 1 | 5259 | 107.4369 | 1.6576 | 150.2999 | 2.2700 | 0.2133 | 576 | e9ffdf9f | completed | False | 48.4220 |
 | EXP-011 | lstm-epochs100 | dev | EXP-010 | lstm.max_epochs | lstm | 1 | 5259 | 103.0124 | 2.3310 | 145.6739 | 3.0378 | 0.2045 | 576 | e9ffdf9f | completed | False | 62.6570 |
+| EXP-012 | lstm-window24 | dev | EXP-011 | lstm.window | lstm | 1 | 5259 | 114.1215 | 4.4820 | 157.9242 | 5.9282 | 0.2265 | 576 | e9ffdf9f | completed | False | 10.2030 |
