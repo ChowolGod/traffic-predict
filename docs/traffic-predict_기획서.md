@@ -408,6 +408,6 @@ uv run ruff format --check src tests
 | 8 | F-07 | M-06, M-09(D-11, 곡선, 샘플 수 검사) / 테스트(같은 시드 1e-6, 스케일러는 train만) → dev LSTM 첫 실험 | 완료 | pytest 145 통과. 같은 시드 재실행 1e-6 이내 동일(Windows CPU, deterministic). full 길이 합성 계열에서 초기 설정 시드 3개 학습 145초. 학습 곡선은 로그 y축, 팔레트 1·2번(train 파랑/val 주황), 최저 val 에폭 표시 |
 | 9 | F-09 | M-17, M-14 / I-05 / 테스트(픽스처로만: LOCK·원자성·confirm·dirty·선택 규칙·부트스트랩 재현) | 완료 | pytest 162 통과(픽스처 full 단계로 검증: LOCK·E-4005·--confirm·dirty·선택 규칙·D-11 누락·원자성·재학습 없음). 구현 중 발견한 버그: final.yaml 키 순서(알파벳)대로 처리해 부트스트랩 기준이 lag-144가 아니게 되던 문제 → 항상 FAMILIES 순서로 처리하도록 수정, 회귀 테스트 유지. 실제 test는 순서 12(사용자 승인 필수) |
 | 10 | 운영 | 원본 11/01~12/22 확보 → `prepare --phase full` → full 실험(`changed: phase`로 옮기기) | 완료 | 2026-09-23. 53개 파일 검증 통과, 결측 0칸. full 상위 구역 5161(dev 5259와 다름, 경고 기록). EXP-013~017 실행(EXP-015 E-3001) |
-| 11 | F-11 | K=3 `prepare`, 구역 2·3 자식 실험 | 대기 | Should. 실제 test 전에 끝낼지 결정 |
+| 11 | F-11 | K=3 `prepare`, 구역 2·3 자식 실험 | 진행 중 | 사용자 결정으로 test 전에 진행(2026-09-23). `configs/phases.yaml` full k 1→3. K=3 test 표(구역별 12행+평균 4행) 테스트 추가(평균 행 코드를 끄면 실패함을 확인). 남은 것: prepare full, 구역 2·3 자식 실험 |
 | 12 | 운영 | 실제 `test --confirm` 1회 | 대기 | **사용자 승인 필수** |
 | 13 | F-10 | README 결과·한계 정리 | 대기 | Should |

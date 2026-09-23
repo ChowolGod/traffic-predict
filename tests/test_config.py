@@ -37,7 +37,7 @@ def test_repo_phases_yaml_matches_plan():
     assert full.train == (date(2013, 11, 1), date(2013, 12, 8))
     assert full.val == (date(2013, 12, 9), date(2013, 12, 15))
     assert full.test == (date(2013, 12, 16), date(2013, 12, 22))
-    assert dev.k == 1 and full.k == 1
+    assert dev.k == 1 and full.k == 3  # full k: 1 → 3 by F-11 (plan 2장 Should)
 
 
 def test_phase_span_covers_all_segments():

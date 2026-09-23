@@ -237,3 +237,31 @@ def test_no_training_during_test(full_ws, monkeypatch):
     monkeypatch.setattr(lstm, "train_lstm", forbidden)
     monkeypatch.setattr(arima, "fit_arima", forbidden)
     assert cli.main(["test", "--final", final_yaml(FINAL), "--confirm"]) == 0
+
+
+# --- F-11: K=3이면 구역별 행과 평균 행 ---------------------------------------------------------
+def test_f11_three_zones_rows_and_mean(full_ws):
+    phases = config.CONFIGS_DIR / "phases.yaml"
+    data = yaml.safe_load(phases.read_text(encoding="utf-8"))
+    data["full"]["k"] = 3
+    phases.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert cli.main(["prepare", "--phase", "full"]) == 0
+    next_id = 5
+    final = {1: dict(FINAL[1]), 2: {}, 3: {}}
+    for family, parent in FINAL[1].items():
+        start = f"EXP-{next_id:03d}"
+        registry.sweep(parent, "zone_rank", "[2, 3]", start, f"z-{family.replace('_', '')}",
+                       "r", "h")  # fmt: skip
+        final[2][family], final[3][family] = start, f"EXP-{next_id + 1:03d}"
+        next_id += 2
+    assert cli.main(["test", "--final", final_yaml(final), "--confirm"]) == 0
+    table = pd.read_csv(out_dir() / "metrics.csv")
+    zone_rows = table[table["zone_rank"] != "mean"]
+    assert sorted(zone_rows["zone_rank"].astype(int).unique()) == [1, 2, 3]
+    assert zone_rows["square_id"].nunique() == 3 and len(zone_rows) == 12
+    means = table[table["zone_rank"] == "mean"].set_index("family")["rel_mae"]
+    expected = zone_rows.groupby("family")["rel_mae"].mean()
+    assert list(means.index) == ["naive_144", "naive_1", "arima", "lstm"]
+    for family in means.index:
+        assert means[family] == pytest.approx(expected[family])
+    assert means["naive_144"] == pytest.approx(1.0)
