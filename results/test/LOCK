@@ -1,0 +1,75 @@
+{
+  "evaluated_at": "2026-09-23T11:56:54+00:00",
+  "final": {
+    "1": {
+      "1": {
+        "naive_144": "EXP-013",
+        "naive_1": "EXP-014",
+        "naive_1008": "EXP-026",
+        "arima": "EXP-017",
+        "lstm": "EXP-016"
+      },
+      "3": {
+        "naive_144": "EXP-035",
+        "naive_1": "EXP-029",
+        "naive_1008": "EXP-041",
+        "arima": "EXP-047",
+        "lstm": "EXP-053"
+      },
+      "6": {
+        "naive_144": "EXP-036",
+        "naive_1": "EXP-030",
+        "naive_1008": "EXP-042",
+        "arima": "EXP-048",
+        "lstm": "EXP-054"
+      }
+    },
+    "2": {
+      "1": {
+        "naive_144": "EXP-018",
+        "naive_1": "EXP-020",
+        "naive_1008": "EXP-027",
+        "arima": "EXP-022",
+        "lstm": "EXP-024"
+      },
+      "3": {
+        "naive_144": "EXP-037",
+        "naive_1": "EXP-031",
+        "naive_1008": "EXP-043",
+        "arima": "EXP-049",
+        "lstm": "EXP-055"
+      },
+      "6": {
+        "naive_144": "EXP-038",
+        "naive_1": "EXP-032",
+        "naive_1008": "EXP-044",
+        "arima": "EXP-050",
+        "lstm": "EXP-056"
+      }
+    },
+    "3": {
+      "1": {
+        "naive_144": "EXP-019",
+        "naive_1": "EXP-021",
+        "naive_1008": "EXP-028",
+        "arima": "EXP-023",
+        "lstm": "EXP-025"
+      },
+      "3": {
+        "naive_144": "EXP-039",
+        "naive_1": "EXP-033",
+        "naive_1008": "EXP-045",
+        "arima": "EXP-051",
+        "lstm": "EXP-057"
+      },
+      "6": {
+        "naive_144": "EXP-040",
+        "naive_1": "EXP-034",
+        "naive_1008": "EXP-046",
+        "arima": "EXP-052",
+        "lstm": "EXP-058"
+      }
+    }
+  },
+  "git_commit": "d163b69d439e35a7eb717028e443d552f8d0723e"
+}
