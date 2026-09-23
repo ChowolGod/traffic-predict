@@ -42,6 +42,7 @@ uv run python -m tp prepare --phase dev          # full은 --phase full
 uv run python -m tp run --config configs/experiments/EXP-001.yaml
 uv run python -m tp sweep --parent EXP-### --key <키> --values '<JSON>' --start-id EXP-### --name <접두어> --reason <문장> --hypothesis <문장>
 uv run python -m tp results
+uv run python scripts/make_readme.py   # 결과 파일이 바뀌면 README 다시 생성(테스트가 일치 확인)
 uv run pytest -q
 uv run ruff check src tests
 uv run ruff format --check src tests
@@ -55,7 +56,7 @@ uv run ruff format --check src tests
 - 채운(`is_imputed`) 시각은 채점과 학습 손실에서 뺍니다. 결측은 앞값으로만 채웁니다(인과적).
 - 모든 무작위성은 `set_seed`를 거칩니다. 같은 머신에서 같은 설정으로 돌리면 같은 지표가 나와야 합니다.
 - 오류는 `TPError("E-xxxx", 메시지)`로만 냅니다. 번호는 기획서 4.3에 있는 것만 씁니다.
-- (v2) 최종 목적은 무선망 운용 결정입니다. 예측 거리 h(1·3·6스텝)마다 대상 시각 t는 t − h까지의 관측만으로 예측하고, 결정 지표는 저장된 예측에서 계산합니다. test는 3·4단계 확정과 F-09 개정 전에는 실행하지 않습니다.
+- (v2) 최종 목적은 무선망 운용 결정입니다. 예측 거리 h(1·3·6스텝)마다 대상 시각 t는 t − h까지의 관측만으로 예측하고, 결정 지표는 저장된 예측에서 계산합니다. test는 2026-09-23에 한 번 실행되어 잠겼습니다(`results/test/LOCK`). 다시 실행하지 않습니다.
 
 ## 경계
 - **항상:** 기능 하나를 끝낼 때 pytest와 ruff를 통과시키고, 기획서의 구현 진행표를 갱신합니다. 새 산출물에는 `_meta.json`/`meta.json`을 남깁니다.

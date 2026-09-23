@@ -22,3 +22,11 @@ def test_readme_states_the_limitations():
     for phrase in ("val은 선택용이라 편향됨", "모든 모델은 train으로만 학습", "11/01, 12/07, 12/08",
                    "성탄 직전 쇼핑 주간", "부트스트랩 블록이 7개뿐"):  # fmt: skip
         assert phrase in text, phrase
+
+
+def test_readme_matches_the_generator():
+    # scripts/make_readme.py builds README from committed result files; rerun it after changes
+    import runpy
+
+    built = runpy.run_path(str(config.ROOT / "scripts" / "make_readme.py"))["readme"]
+    assert README.read_text(encoding="utf-8").replace("\r\n", "\n") == built
