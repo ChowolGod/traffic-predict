@@ -1,0 +1,21 @@
+{
+  "id": "EXP-003",
+  "parent": "EXP-001",
+  "changed": "model.type",
+  "reason": "비교 순서(seasonal naive → ARIMA → LSTM)의 두 번째 계열. 초기 설정 ARIMA(2,1,2), 계절성 처리 없이 시작한다",
+  "hypothesis": "직전 값들의 자기상관을 쓰는 ARIMA(2,1,2)는 lag-144보다 크게 낫고 lag-1(val MAE 101.44)과 비슷하거나 조금 낫다. 계절성을 넣지 않았으므로 하루 주기 전환 구간(아침 증가·밤 감소)에서는 오차가 남는다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "bcd81eea5f17cfb1052e67c4fc8941bcd14345cab3bab9c4b9e38d0cd934038f",
+  "git_commit": "44dd7a95dbd3603b2e3859a06dc96fcddea83a44",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:01:06+00:00",
+  "ended_at": "2026-09-23T09:01:08+00:00",
+  "duration_s": 1.812,
+  "pid": 6660,
+  "square_id": 5259,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "e9ffdf9f"
+}

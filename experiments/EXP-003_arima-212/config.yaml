@@ -1,0 +1,21 @@
+id: EXP-003
+name: arima-212
+phase: dev
+parent: EXP-001
+changed: model.type
+reason: 비교 순서(seasonal naive → ARIMA → LSTM)의 두 번째 계열. 초기 설정 ARIMA(2,1,2), 계절성 처리
+  없이 시작한다
+hypothesis: 직전 값들의 자기상관을 쓰는 ARIMA(2,1,2)는 lag-144보다 크게 낫고 lag-1(val MAE 101.44)과 비슷하거나
+  조금 낫다. 계절성을 넣지 않았으므로 하루 주기 전환 구간(아침 증가·밤 감소)에서는 오차가 남는다
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 2
+  - 1
+  - 2
+  seasonal: none
+runtime:
+  time_limit_min: 30
+  threads: 4
