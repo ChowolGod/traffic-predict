@@ -1,0 +1,3 @@
+exp_id,name,phase,parent,changed,model_type,zone_rank,square_id,val_mae,val_mae_std,val_rmse,val_rmse_std,val_rel_mae,n,compare_group,status,post_test,duration_s
+EXP-001,lag144,dev,,,naive,1,5259,503.76367624195467,,897.5232988432856,,1.0,576,e9ffdf9f,completed,False,1.937
+EXP-002,lag1,dev,EXP-001,naive.lag,naive,1,5259,101.44073422912852,,151.32265150295416,,0.20136571772278228,576,e9ffdf9f,completed,False,1.375

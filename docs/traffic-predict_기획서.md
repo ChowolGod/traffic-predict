@@ -4,7 +4,7 @@
 프로필: 데이터·ML 실험
 
 ## 다음 세션에게
-- 현재 단계: 구현 중. 1(골격) 완료, 2(F-01)·3(F-02)·4(F-03)·5(F-04) 완료, 6(F-08+F-05) 코드 완료·실데이터 실행 남음, 7(F-06)·8(F-07)·9(F-09) 완료. 남은 것: 6의 실데이터 dev 기준선 실행, 10(full 운영)~13
+- 현재 단계: 구현 중. 1(골격) 완료, 2(F-01)·3(F-02)·4(F-03)·5(F-04) 완료, 6(F-08+F-05) 코드 완료·실데이터 실행 남음, 7(F-06)·8(F-07)·9(F-09) 완료. 남은 것: dev ARIMA·LSTM 실험(사용자 진행), 10(full 운영)~13
 - 확정된 결정:
   - 프로필: 데이터·ML 실험 / 개인 프로젝트, 1인, 직접 구현
   - 결과 소비자: GitHub 포트폴리오(README). 정해진 마감 없음
@@ -24,6 +24,7 @@
 - 남은 일: 구현 진행표 순서대로 구현. 원본을 받으면 F-01의 실제 데이터 확인(진행표 2 비고)을 먼저 끝낸다. 디스크 여유 52GB라 공간 문제는 해소
 - 제약: 마감 없음 · 채점 기준 없음 · 제출물 = GitHub 저장소 README · 구현함
 - 최근 변경: 없음 (v1)
+- 마지막 실험: dev EXP-002 lag-1, 구역 5259, 시드 없음(naive), val MAE 101.4407 / RMSE 151.3227 (EXP-001 lag-144 MAE 503.7637). pytest 162 통과
 - 구현 환경(2026-09-23 확인): 커밋은 기능 완료마다 자동(`feat(F-xx): …`, push 안 함). 원본은 기본 경로 `data/raw`(사용자가 받는 중). CPU만 사용. 디스크 여유 52GB
 
 ## 1. 개요
@@ -402,7 +403,7 @@ uv run ruff format --check src tests
 | 3 | F-02 | M-03 / I-01 구역 부분 / 테스트(train만 사용, 동률) | 완료 | pytest 54 통과. 인접 날짜 파일에 섞인 train 행도 현지 날짜 기준으로 집계 |
 | 4 | F-03 | M-04, M-05 / I-01 완성 / 테스트(앞값 채우기, E-2002, 경계, 144칸, `cut_until`) | 완료 | pytest 69 통과. `load_series`(E-2003)도 여기서 구현. 테스트용 dev 단계는 train 11-04 / val 11-05(11-06의 4칸 결측은 E-2002 테스트에서 따로 사용) |
 | 5 | F-04 | M-10 / 테스트(손계산 예제 1e-9, 채운 시각 제외, E-4004, rel_mae) | 완료 | pytest 78 통과 |
-| 6 | F-08 + F-05 | M-11(규칙·락·메타·sweep), M-12, M-07 / I-02, I-03, I-04 / 테스트(루트·한 요소·계열 전환·ID·retry·dirty) → dev EXP-001(lag-144), EXP-002(lag-1) | 진행 중 | 코드·테스트 완료(pytest 117 통과). **남은 것: 실제 dev 데이터로 EXP-001(lag-144)·EXP-002(lag-1) 실행**. 구현 세부: dirty 판정은 코드 경로(`src`, `pyproject.toml`, `uv.lock`, `configs/phases.yaml`)만 봄 / `meta.json`에 `square_id·agg_version·impute_version·compare_group` 추가(실행 당시 버전으로 compare_group 계산) / `results/figures/*.png`는 F-10에서 구현 |
+| 6 | F-08 + F-05 | M-11(규칙·락·메타·sweep), M-12, M-07 / I-02, I-03, I-04 / 테스트(루트·한 요소·계열 전환·ID·retry·dirty) → dev EXP-001(lag-144), EXP-002(lag-1) | 완료 | 코드·테스트 완료(pytest 117 통과). 실데이터 dev 기준선(2026-09-23): 상위 구역 5259, 결측 0칸 / EXP-001 lag-144 val MAE 503.76·RMSE 897.52 / EXP-002 lag-1 val MAE 101.44·RMSE 151.32(rel_mae 0.201). 독립 계산과 일치. lag-144 오차는 토요일(11/16, 금→토) MAE 1360이 대부분: 요일 효과(평일 평균 약 1750, 주말 약 520~780). 구현 세부: dirty 판정은 코드 경로(`src`, `pyproject.toml`, `uv.lock`, `configs/phases.yaml`)만 봄 / `meta.json`에 `square_id·agg_version·impute_version·compare_group` 추가(실행 당시 버전으로 compare_group 계산) / `results/figures/*.png`는 F-10에서 구현 |
 | 7 | F-06 | M-08(none·diff144·fourier, 수렴 판정, D-11) / 테스트(재현 1e-9, apply가 재적합 안 함) → dev ARIMA 첫 실험 | 완료 | pytest 131 통과. full 길이 합성 계열(train 38일+val 7일) 적합 시간: (2,1,2) none 1.3초 / diff144 0.9초 / fourier 2.4초, (5,1,5)+fourier K=10 23.9초 → 30분 제한 위험 없음. 실데이터 dev 실험은 원본 도착 후 |
 | 8 | F-07 | M-06, M-09(D-11, 곡선, 샘플 수 검사) / 테스트(같은 시드 1e-6, 스케일러는 train만) → dev LSTM 첫 실험 | 완료 | pytest 145 통과. 같은 시드 재실행 1e-6 이내 동일(Windows CPU, deterministic). full 길이 합성 계열에서 초기 설정 시드 3개 학습 145초. 학습 곡선은 로그 y축, 팔레트 1·2번(train 파랑/val 주황), 최저 val 에폭 표시 |
 | 9 | F-09 | M-17, M-14 / I-05 / 테스트(픽스처로만: LOCK·원자성·confirm·dirty·선택 규칙·부트스트랩 재현) | 완료 | pytest 162 통과(픽스처 full 단계로 검증: LOCK·E-4005·--confirm·dirty·선택 규칙·D-11 누락·원자성·재학습 없음). 구현 중 발견한 버그: final.yaml 키 순서(알파벳)대로 처리해 부트스트랩 기준이 lag-144가 아니게 되던 문제 → 항상 FAMILIES 순서로 처리하도록 수정, 회귀 테스트 유지. 실제 test는 순서 12(사용자 승인 필수) |

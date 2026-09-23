@@ -1,0 +1,15 @@
+id: EXP-002
+name: lag1
+phase: dev
+parent: EXP-001
+changed: naive.lag
+reason: 10분 뒤 예측에서 가장 강한 단순 기준선(직전 값)을 참고 기준선으로 함께 보고한다
+hypothesis: 10분 사이 변화는 작으므로 직전 값이 전날 같은 시각보다 MAE가 작다(rel_mae < 1)
+zone_rank: 1
+model:
+  type: naive
+naive:
+  lag: 1
+runtime:
+  time_limit_min: 30
+  threads: 4

@@ -1,0 +1,21 @@
+{
+  "id": "EXP-002",
+  "parent": "EXP-001",
+  "changed": "naive.lag",
+  "reason": "10분 뒤 예측에서 가장 강한 단순 기준선(직전 값)을 참고 기준선으로 함께 보고한다",
+  "hypothesis": "10분 사이 변화는 작으므로 직전 값이 전날 같은 시각보다 MAE가 작다(rel_mae < 1)",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "1fcf25c97cceaa7444ecb7741c2ecf23c2eaf173344cd12671412786fa5b7788",
+  "git_commit": "efe48d60e47febc3642446c8a8c3c5febb0a9111",
+  "git_dirty": false,
+  "started_at": "2026-09-23T08:57:52+00:00",
+  "ended_at": "2026-09-23T08:57:53+00:00",
+  "duration_s": 1.375,
+  "pid": 28564,
+  "square_id": 5259,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "e9ffdf9f"
+}

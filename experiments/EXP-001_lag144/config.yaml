@@ -1,0 +1,15 @@
+id: EXP-001
+name: lag144
+phase: dev
+parent: null
+changed: null
+reason: dev 단계 루트. 공식 기준선(전날 같은 시각)을 먼저 세워 이후 모든 dev 실험의 비교 기준으로 삼는다
+hypothesis: 상위 구역 트래픽은 하루 주기가 강하므로 전날 같은 시각 값만으로도 10분 뒤를 어느 정도 맞힌다
+zone_rank: 1
+model:
+  type: naive
+naive:
+  lag: 144
+runtime:
+  time_limit_min: 30
+  threads: 4
