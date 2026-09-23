@@ -1,64 +1,64 @@
 # 실험 결과 (val)
 
-val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니다(조기 종료까지 val로 하는 LSTM은 더 편향됨). 계열 간 공정한 비교는 test 결과(`results/test/`)만 해당합니다. `compare_group`과 `horizon`이 같은 행끼리만 비교할 수 있습니다. `dec_*`는 각 실험의 거리 기준 결정 지표입니다(`configs/decision.yaml`).
+val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니다(조기 종료까지 val로 하는 LSTM은 더 편향됨). 계열 간 공정한 비교는 test 결과(`results/test/`)만 해당합니다. `compare_group`과 `horizon`이 같은 행끼리만 비교할 수 있습니다. `dec_*`는 각 실험의 거리 기준 결정 지표입니다(`configs/decision.yaml`). LSTM의 `dec_*`는 시드별로 계산한 평균이고 `dec_*_std`는 시드 간 표준편차입니다.
 
-| exp_id | name | phase | parent | changed | model_type | horizon | zone_rank | square_id | val_mae | val_mae_std | val_rmse | val_rmse_std | val_rel_mae | n | compare_group | dec_threshold | dec_episodes | dec_missed | dec_false_alarm_min | dec_lead_min | status | post_test | duration_s |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| EXP-001 | lag144 | dev |  |  | naive | 1 | 1 | 5259 | 503.7637 |  | 897.5233 |  | 1.0000 | 576 | e9ffdf9f | 2648.6353 | 3 | 1 | 540 | 10.0000 | completed | False | 1.9370 |
-| EXP-002 | lag1 | dev | EXP-001 | naive.lag | naive | 1 | 1 | 5259 | 101.4407 |  | 151.3227 |  | 0.2014 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  | completed | False | 1.3750 |
-| EXP-003 | arima-212 | dev | EXP-001 | model.type | arima | 1 | 1 | 5259 | 94.1631 |  | 137.0304 |  | 0.1869 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 40 |  | completed | False | 1.8120 |
-| EXP-004 | arima-seasonal-diff144 | dev | EXP-003 | arima.seasonal | arima | 1 | 1 | 5259 | 142.4173 |  | 199.1959 |  | 0.2827 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  | completed | False | 1.5790 |
-| EXP-005 | arima-seasonal-fourier | dev | EXP-003 | arima.seasonal | arima | 1 | 1 | 5259 | 105.8979 |  | 143.6543 |  | 0.2102 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 20 |  | completed | False | 0.5000 |
-| EXP-006 | arima-202-diff144 | dev | EXP-004 | arima.order | arima | 1 | 1 | 5259 | 142.3831 |  | 199.6453 |  | 0.2826 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  | completed | False | 1.8130 |
-| EXP-007 | arima-order-1-1-1 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 98.3630 |  | 146.1301 |  | 0.1953 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  | completed | False | 1.6410 |
-| EXP-008 | arima-order-3-1-3 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 95.1271 |  | 138.2604 |  | 0.1888 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 50 |  | completed | False | 0.4530 |
-| EXP-009 | arima-order-5-1-5 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 93.8156 |  | 136.9472 |  | 0.1862 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 40 |  | completed | False | 2.2190 |
-| EXP-010 | lstm-init | dev | EXP-001 | model.type | lstm | 1 | 1 | 5259 | 107.4369 | 1.6576 | 150.2999 | 2.2700 | 0.2133 | 576 | e9ffdf9f | 2648.6353 | 3 | 1 | 30 | 10.0000 | completed | False | 48.4220 |
-| EXP-011 | lstm-epochs100 | dev | EXP-010 | lstm.max_epochs | lstm | 1 | 1 | 5259 | 103.0124 | 2.3310 | 145.6739 | 3.0378 | 0.2045 | 576 | e9ffdf9f | 2648.6353 | 3 | 1 | 30 | 10.0000 | completed | False | 62.6570 |
-| EXP-012 | lstm-window24 | dev | EXP-011 | lstm.window | lstm | 1 | 1 | 5259 | 114.1215 | 4.4820 | 157.9242 | 5.9282 | 0.2265 | 576 | e9ffdf9f | 2648.6353 | 3 | 2 | 30 | 10.0000 | completed | False | 10.2030 |
-| EXP-013 | full-lag144 | full |  |  | naive | 1 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 490 | 10.0000 | completed | False | 5.9370 |
-| EXP-014 | full-lag1 | full | EXP-013 | naive.lag | naive | 1 | 1 | 5161 | 116.8333 |  | 175.1906 |  | 0.3962 | 1008 | aeb67261 | 3856.3743 | 12 | 12 | 120 |  | completed | False | 1.4060 |
-| EXP-015 | full-arima-515 | full | EXP-009 | phase | arima | 1 | 1 | 5161 |  |  |  |  |  |  |  |  |  |  |  |  | failed | False | 14.0160 |
-| EXP-016 | full-lstm-init-e100 | full | EXP-011 | phase | lstm | 1 | 1 | 5161 | 110.8343 | 3.9510 | 160.0432 | 3.1561 | 0.3758 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 150 | 10.0000 | completed | False | 117.6560 |
-| EXP-017 | full-arima-212 | full | EXP-003 | phase | arima | 1 | 1 | 5161 | 109.5478 |  | 164.5672 |  | 0.3715 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 170 | 10.0000 | completed | False | 2.2340 |
-| EXP-018 | z-lag144-2 | full | EXP-013 | zone_rank | naive | 1 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 4 | 280 | 10.0000 | completed | False | 1.2970 |
-| EXP-019 | z-lag144-3 | full | EXP-013 | zone_rank | naive | 1 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 2 | 540 | 10.0000 | completed | False | 0.0310 |
-| EXP-020 | z-lag1-2 | full | EXP-014 | zone_rank | naive | 1 | 2 | 5059 | 99.9003 |  | 145.7529 |  | 0.4680 | 1008 | f89e8093 | 2281.9846 | 8 | 8 | 80 |  | completed | False | 1.2820 |
-| EXP-021 | z-lag1-3 | full | EXP-014 | zone_rank | naive | 1 | 3 | 5259 | 89.9451 |  | 132.1991 |  | 0.1753 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 50 |  | completed | False | 0.0310 |
-| EXP-022 | z-arima212-2 | full | EXP-017 | zone_rank | arima | 1 | 2 | 5059 | 94.5509 |  | 134.4790 |  | 0.4430 | 1008 | f89e8093 | 2281.9846 | 8 | 6 | 110 | 10.0000 | completed | False | 2.2030 |
-| EXP-023 | z-arima212-3 | full | EXP-017 | zone_rank | arima | 1 | 3 | 5259 | 82.6111 |  | 121.8600 |  | 0.1610 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 50 | 10.0000 | completed | False | 0.6870 |
-| EXP-024 | z-lstm-2 | full | EXP-016 | zone_rank | lstm | 1 | 2 | 5059 | 95.2608 | 4.4247 | 137.5885 | 5.8229 | 0.4463 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 140 | 10.0000 | completed | False | 91.6400 |
-| EXP-025 | z-lstm-3 | full | EXP-016 | zone_rank | lstm | 1 | 3 | 5259 | 79.2732 | 0.3231 | 113.6754 | 0.9005 | 0.1545 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 60 | 10.0000 | completed | False | 140.7030 |
-| EXP-026 | z1-lag-1008 | full | EXP-013 | naive.lag | naive | 1 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 110 | 10.0000 | completed | False | 1.3590 |
-| EXP-027 | z2-lag-1008 | full | EXP-018 | naive.lag | naive | 1 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 30 | 10.0000 | completed | False | 1.5000 |
-| EXP-028 | z3-lag-1008 | full | EXP-019 | naive.lag | naive | 1 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 4 | 20 | 10.0000 | completed | False | 1.2810 |
-| EXP-029 | lag1-z1-3 | full | EXP-014 | horizon | naive | 3 | 1 | 5161 | 200.8179 |  | 292.8764 |  | 0.6810 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 170 | 30.0000 | completed | False | 1.3440 |
-| EXP-030 | lag1-z1-6 | full | EXP-014 | horizon | naive | 6 | 1 | 5161 | 349.1043 |  | 499.3420 |  | 1.1838 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 220 | 50.0000 | completed | False | 0.0310 |
-| EXP-031 | lag1-z2-3 | full | EXP-020 | horizon | naive | 3 | 2 | 5059 | 157.1578 |  | 217.0576 |  | 0.7363 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 180 | 30.0000 | completed | False | 1.3590 |
-| EXP-032 | lag1-z2-6 | full | EXP-020 | horizon | naive | 6 | 2 | 5059 | 259.0747 |  | 346.1017 |  | 1.2138 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 390 | 30.0000 | completed | False | 0.0310 |
-| EXP-033 | lag1-z3-3 | full | EXP-021 | horizon | naive | 3 | 3 | 5259 | 148.6818 |  | 223.0852 |  | 0.2898 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 150 |  | completed | False | 1.4370 |
-| EXP-034 | lag1-z3-6 | full | EXP-021 | horizon | naive | 6 | 3 | 5259 | 252.2800 |  | 385.4883 |  | 0.4917 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 300 |  | completed | False | 0.0470 |
-| EXP-035 | lag144-z1-3 | full | EXP-013 | horizon | naive | 3 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 490 | 25.0000 | completed | False | 1.3900 |
-| EXP-036 | lag144-z1-6 | full | EXP-013 | horizon | naive | 6 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 490 | 55.0000 | completed | False | 0.0470 |
-| EXP-037 | lag144-z2-3 | full | EXP-018 | horizon | naive | 3 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 3 | 280 | 26.0000 | completed | False | 1.3750 |
-| EXP-038 | lag144-z2-6 | full | EXP-018 | horizon | naive | 6 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 280 | 51.6667 | completed | False | 0.0160 |
-| EXP-039 | lag144-z3-3 | full | EXP-019 | horizon | naive | 3 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 540 | 27.5000 | completed | False | 1.2820 |
-| EXP-040 | lag144-z3-6 | full | EXP-019 | horizon | naive | 6 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 540 | 57.5000 | completed | False | 0.0310 |
-| EXP-041 | lag1008-z1-3 | full | EXP-026 | horizon | naive | 3 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 110 | 30.0000 | completed | False | 1.2810 |
-| EXP-042 | lag1008-z1-6 | full | EXP-026 | horizon | naive | 6 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 110 | 60.0000 | completed | False | 0.0160 |
-| EXP-043 | lag1008-z2-3 | full | EXP-027 | horizon | naive | 3 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 4 | 30 | 20.0000 | completed | False | 1.2500 |
-| EXP-044 | lag1008-z2-6 | full | EXP-027 | horizon | naive | 6 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 30 | 40.0000 | completed | False | 0.0160 |
-| EXP-045 | lag1008-z3-3 | full | EXP-028 | horizon | naive | 3 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 4 | 20 | 30.0000 | completed | False | 1.2970 |
-| EXP-046 | lag1008-z3-6 | full | EXP-028 | horizon | naive | 6 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 2 | 20 | 40.0000 | completed | False | 0.0320 |
-| EXP-047 | arima-z1-3 | full | EXP-017 | horizon | arima | 3 | 1 | 5161 | 165.3327 |  | 244.3164 |  | 0.5607 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 250 | 26.6667 | completed | False | 2.1560 |
-| EXP-048 | arima-z1-6 | full | EXP-017 | horizon | arima | 6 | 1 | 5161 | 257.7830 |  | 379.4165 |  | 0.8742 | 1008 | aeb67261 | 3856.3743 | 12 | 7 | 380 | 50.0000 | completed | False | 0.9220 |
-| EXP-049 | arima-z2-3 | full | EXP-022 | horizon | arima | 3 | 2 | 5059 | 133.7001 |  | 186.5679 |  | 0.6264 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 230 | 25.0000 | completed | False | 2.1410 |
-| EXP-050 | arima-z2-6 | full | EXP-022 | horizon | arima | 6 | 2 | 5059 | 198.6134 |  | 272.7115 |  | 0.9305 | 1008 | f89e8093 | 2281.9846 | 8 | 1 | 370 | 44.2857 | completed | False | 0.8910 |
-| EXP-051 | arima-z3-3 | full | EXP-023 | horizon | arima | 3 | 3 | 5259 | 123.8659 |  | 188.8110 |  | 0.2414 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 130 | 20.0000 | completed | False | 1.9060 |
-| EXP-052 | arima-z3-6 | full | EXP-023 | horizon | arima | 6 | 3 | 5259 | 205.2203 |  | 321.5137 |  | 0.4000 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 220 | 32.0000 | completed | False | 0.6720 |
-| EXP-053 | lstm-z1-3 | full | EXP-016 | horizon | lstm | 3 | 1 | 5161 | 140.5791 | 4.0925 | 202.6616 | 1.8087 | 0.4767 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 130 | 30.0000 | completed | False | 81.9220 |
-| EXP-054 | lstm-z1-6 | full | EXP-016 | horizon | lstm | 6 | 1 | 5161 | 173.2767 | 8.4967 | 252.2205 | 15.0099 | 0.5876 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 180 | 60.0000 | completed | False | 75.6250 |
-| EXP-055 | lstm-z2-3 | full | EXP-024 | horizon | lstm | 3 | 2 | 5059 | 121.2765 | 2.0835 | 168.4942 | 2.5503 | 0.5682 | 1008 | f89e8093 | 2281.9846 | 8 | 3 | 220 | 24.0000 | completed | False | 51.9370 |
-| EXP-056 | lstm-z2-6 | full | EXP-024 | horizon | lstm | 6 | 2 | 5059 | 146.7339 | 0.6944 | 203.0011 | 4.0660 | 0.6874 | 1008 | f89e8093 | 2281.9846 | 8 | 1 | 280 | 51.4286 | completed | False | 40.3750 |
-| EXP-057 | lstm-z3-3 | full | EXP-025 | horizon | lstm | 3 | 3 | 5259 | 108.0919 | 3.6994 | 152.8542 | 3.7494 | 0.2107 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 50 | 22.0000 | completed | False | 95.8430 |
-| EXP-058 | lstm-z3-6 | full | EXP-025 | horizon | lstm | 6 | 3 | 5259 | 154.8457 | 10.3463 | 216.6665 | 13.3978 | 0.3018 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 100 | 36.0000 | completed | False | 80.4220 |
+| exp_id | name | phase | parent | changed | model_type | horizon | zone_rank | square_id | val_mae | val_mae_std | val_rmse | val_rmse_std | val_rel_mae | n | compare_group | dec_threshold | dec_episodes | dec_missed | dec_false_alarm_min | dec_lead_min | dec_missed_std | dec_false_alarm_min_std | dec_lead_min_std | status | post_test | duration_s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| EXP-001 | lag144 | dev |  |  | naive | 1 | 1 | 5259 | 503.7637 |  | 897.5233 |  | 1.0000 | 576 | e9ffdf9f | 2648.6353 | 3 | 1 | 520 | 10.0000 |  |  |  | completed | False | 1.9370 |
+| EXP-002 | lag1 | dev | EXP-001 | naive.lag | naive | 1 | 1 | 5259 | 101.4407 |  | 151.3227 |  | 0.2014 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  |  |  |  | completed | False | 1.3750 |
+| EXP-003 | arima-212 | dev | EXP-001 | model.type | arima | 1 | 1 | 5259 | 94.1631 |  | 137.0304 |  | 0.1869 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 40 |  |  |  |  | completed | False | 1.8120 |
+| EXP-004 | arima-seasonal-diff144 | dev | EXP-003 | arima.seasonal | arima | 1 | 1 | 5259 | 142.4173 |  | 199.1959 |  | 0.2827 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 20 |  |  |  |  | completed | False | 1.5790 |
+| EXP-005 | arima-seasonal-fourier | dev | EXP-003 | arima.seasonal | arima | 1 | 1 | 5259 | 105.8979 |  | 143.6543 |  | 0.2102 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 20 |  |  |  |  | completed | False | 0.5000 |
+| EXP-006 | arima-202-diff144 | dev | EXP-004 | arima.order | arima | 1 | 1 | 5259 | 142.3831 |  | 199.6453 |  | 0.2826 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 20 |  |  |  |  | completed | False | 1.8130 |
+| EXP-007 | arima-order-1-1-1 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 98.3630 |  | 146.1301 |  | 0.1953 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 30 |  |  |  |  | completed | False | 1.6410 |
+| EXP-008 | arima-order-3-1-3 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 95.1271 |  | 138.2604 |  | 0.1888 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 50 |  |  |  |  | completed | False | 0.4530 |
+| EXP-009 | arima-order-5-1-5 | dev | EXP-003 | arima.order | arima | 1 | 1 | 5259 | 93.8156 |  | 136.9472 |  | 0.1862 | 576 | e9ffdf9f | 2648.6353 | 3 | 3 | 40 |  |  |  |  | completed | False | 2.2190 |
+| EXP-010 | lstm-init | dev | EXP-001 | model.type | lstm | 1 | 1 | 5259 | 107.4369 | 1.6576 | 150.2999 | 2.2700 | 0.2133 | 576 | e9ffdf9f | 2648.6353 | 3 | 1.3333 | 20.0000 | 10.0000 | 0.5774 | 0.0000 | 0.0000 | completed | False | 48.4220 |
+| EXP-011 | lstm-epochs100 | dev | EXP-010 | lstm.max_epochs | lstm | 1 | 1 | 5259 | 103.0124 | 2.3310 | 145.6739 | 3.0378 | 0.2045 | 576 | e9ffdf9f | 2648.6353 | 3 | 1.3333 | 20.0000 | 10.0000 | 0.5774 | 0.0000 | 0.0000 | completed | False | 62.6570 |
+| EXP-012 | lstm-window24 | dev | EXP-011 | lstm.window | lstm | 1 | 1 | 5259 | 114.1215 | 4.4820 | 157.9242 | 5.9282 | 0.2265 | 576 | e9ffdf9f | 2648.6353 | 3 | 2.0000 | 20.0000 | 10.0000 | 1.0000 | 10.0000 | 0.0000 | completed | False | 10.2030 |
+| EXP-013 | full-lag144 | full |  |  | naive | 1 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 480 | 10.0000 |  |  |  | completed | False | 5.9370 |
+| EXP-014 | full-lag1 | full | EXP-013 | naive.lag | naive | 1 | 1 | 5161 | 116.8333 |  | 175.1906 |  | 0.3962 | 1008 | aeb67261 | 3856.3743 | 12 | 12 | 120 |  |  |  |  | completed | False | 1.4060 |
+| EXP-015 | full-arima-515 | full | EXP-009 | phase | arima | 1 | 1 | 5161 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | failed | False | 14.0160 |
+| EXP-016 | full-lstm-init-e100 | full | EXP-011 | phase | lstm | 1 | 1 | 5161 | 110.8343 | 3.9510 | 160.0432 | 3.1561 | 0.3758 | 1008 | aeb67261 | 3856.3743 | 12 | 9.0000 | 113.3333 | 10.0000 | 0.0000 | 25.1661 | 0.0000 | completed | False | 117.6560 |
+| EXP-017 | full-arima-212 | full | EXP-003 | phase | arima | 1 | 1 | 5161 | 109.5478 |  | 164.5672 |  | 0.3715 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 130 | 10.0000 |  |  |  | completed | False | 2.2340 |
+| EXP-018 | z-lag144-2 | full | EXP-013 | zone_rank | naive | 1 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 4 | 240 | 10.0000 |  |  |  | completed | False | 1.2970 |
+| EXP-019 | z-lag144-3 | full | EXP-013 | zone_rank | naive | 1 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 2 | 540 | 10.0000 |  |  |  | completed | False | 0.0310 |
+| EXP-020 | z-lag1-2 | full | EXP-014 | zone_rank | naive | 1 | 2 | 5059 | 99.9003 |  | 145.7529 |  | 0.4680 | 1008 | f89e8093 | 2281.9846 | 8 | 8 | 80 |  |  |  |  | completed | False | 1.2820 |
+| EXP-021 | z-lag1-3 | full | EXP-014 | zone_rank | naive | 1 | 3 | 5259 | 89.9451 |  | 132.1991 |  | 0.1753 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 50 |  |  |  |  | completed | False | 0.0310 |
+| EXP-022 | z-arima212-2 | full | EXP-017 | zone_rank | arima | 1 | 2 | 5059 | 94.5509 |  | 134.4790 |  | 0.4430 | 1008 | f89e8093 | 2281.9846 | 8 | 6 | 100 | 10.0000 |  |  |  | completed | False | 2.2030 |
+| EXP-023 | z-arima212-3 | full | EXP-017 | zone_rank | arima | 1 | 3 | 5259 | 82.6111 |  | 121.8600 |  | 0.1610 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 50 | 10.0000 |  |  |  | completed | False | 0.6870 |
+| EXP-024 | z-lstm-2 | full | EXP-016 | zone_rank | lstm | 1 | 2 | 5059 | 95.2608 | 4.4247 | 137.5885 | 5.8229 | 0.4463 | 1008 | f89e8093 | 2281.9846 | 8 | 6.6667 | 133.3333 | 10.0000 | 0.5774 | 15.2753 | 0.0000 | completed | False | 91.6400 |
+| EXP-025 | z-lstm-3 | full | EXP-016 | zone_rank | lstm | 1 | 3 | 5259 | 79.2732 | 0.3231 | 113.6754 | 0.9005 | 0.1545 | 1008 | 3adef90e | 2631.7073 | 5 | 1.0000 | 60.0000 | 10.0000 | 0.0000 | 10.0000 | 0.0000 | completed | False | 140.7030 |
+| EXP-026 | z1-lag-1008 | full | EXP-013 | naive.lag | naive | 1 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 90 | 10.0000 |  |  |  | completed | False | 1.3590 |
+| EXP-027 | z2-lag-1008 | full | EXP-018 | naive.lag | naive | 1 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 10 | 10.0000 |  |  |  | completed | False | 1.5000 |
+| EXP-028 | z3-lag-1008 | full | EXP-019 | naive.lag | naive | 1 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 4 | 20 | 10.0000 |  |  |  | completed | False | 1.2810 |
+| EXP-029 | lag1-z1-3 | full | EXP-014 | horizon | naive | 3 | 1 | 5161 | 200.8179 |  | 292.8764 |  | 0.6810 | 1008 | aeb67261 | 3856.3743 | 12 | 8 | 130 | 30.0000 |  |  |  | completed | False | 1.3440 |
+| EXP-030 | lag1-z1-6 | full | EXP-014 | horizon | naive | 6 | 1 | 5161 | 349.1043 |  | 499.3420 |  | 1.1838 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 200 | 50.0000 |  |  |  | completed | False | 0.0310 |
+| EXP-031 | lag1-z2-3 | full | EXP-020 | horizon | naive | 3 | 2 | 5059 | 157.1578 |  | 217.0576 |  | 0.7363 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 180 | 30.0000 |  |  |  | completed | False | 1.3590 |
+| EXP-032 | lag1-z2-6 | full | EXP-020 | horizon | naive | 6 | 2 | 5059 | 259.0747 |  | 346.1017 |  | 1.2138 | 1008 | f89e8093 | 2281.9846 | 8 | 7 | 390 | 30.0000 |  |  |  | completed | False | 0.0310 |
+| EXP-033 | lag1-z3-3 | full | EXP-021 | horizon | naive | 3 | 3 | 5259 | 148.6818 |  | 223.0852 |  | 0.2898 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 150 |  |  |  |  | completed | False | 1.4370 |
+| EXP-034 | lag1-z3-6 | full | EXP-021 | horizon | naive | 6 | 3 | 5259 | 252.2800 |  | 385.4883 |  | 0.4917 | 1008 | 3adef90e | 2631.7073 | 5 | 5 | 300 |  |  |  |  | completed | False | 0.0470 |
+| EXP-035 | lag144-z1-3 | full | EXP-013 | horizon | naive | 3 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 460 | 25.0000 |  |  |  | completed | False | 1.3900 |
+| EXP-036 | lag144-z1-6 | full | EXP-013 | horizon | naive | 6 | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 430 | 55.0000 |  |  |  | completed | False | 0.0470 |
+| EXP-037 | lag144-z2-3 | full | EXP-018 | horizon | naive | 3 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 3 | 170 | 26.0000 |  |  |  | completed | False | 1.3750 |
+| EXP-038 | lag144-z2-6 | full | EXP-018 | horizon | naive | 6 | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 110 | 51.6667 |  |  |  | completed | False | 0.0160 |
+| EXP-039 | lag144-z3-3 | full | EXP-019 | horizon | naive | 3 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 540 | 27.5000 |  |  |  | completed | False | 1.2820 |
+| EXP-040 | lag144-z3-6 | full | EXP-019 | horizon | naive | 6 | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | 2631.7073 | 5 | 1 | 540 | 57.5000 |  |  |  | completed | False | 0.0310 |
+| EXP-041 | lag1008-z1-3 | full | EXP-026 | horizon | naive | 3 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 70 | 30.0000 |  |  |  | completed | False | 1.2810 |
+| EXP-042 | lag1008-z1-6 | full | EXP-026 | horizon | naive | 6 | 1 | 5161 | 214.3205 |  | 320.0834 |  | 0.7268 | 1008 | aeb67261 | 3856.3743 | 12 | 9 | 70 | 60.0000 |  |  |  | completed | False | 0.0160 |
+| EXP-043 | lag1008-z2-3 | full | EXP-027 | horizon | naive | 3 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 4 | 0 | 20.0000 |  |  |  | completed | False | 1.2500 |
+| EXP-044 | lag1008-z2-6 | full | EXP-027 | horizon | naive | 6 | 2 | 5059 | 203.3671 |  | 300.4152 |  | 0.9528 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 0 | 40.0000 |  |  |  | completed | False | 0.0160 |
+| EXP-045 | lag1008-z3-3 | full | EXP-028 | horizon | naive | 3 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 4 | 20 | 30.0000 |  |  |  | completed | False | 1.2970 |
+| EXP-046 | lag1008-z3-6 | full | EXP-028 | horizon | naive | 6 | 3 | 5259 | 184.7826 |  | 295.7111 |  | 0.3601 | 1008 | 3adef90e | 2631.7073 | 5 | 2 | 20 | 40.0000 |  |  |  | completed | False | 0.0320 |
+| EXP-047 | arima-z1-3 | full | EXP-017 | horizon | arima | 3 | 1 | 5161 | 165.3327 |  | 244.3164 |  | 0.5607 | 1008 | aeb67261 | 3856.3743 | 12 | 6 | 160 | 26.6667 |  |  |  | completed | False | 2.1560 |
+| EXP-048 | arima-z1-6 | full | EXP-017 | horizon | arima | 6 | 1 | 5161 | 257.7830 |  | 379.4165 |  | 0.8742 | 1008 | aeb67261 | 3856.3743 | 12 | 7 | 300 | 50.0000 |  |  |  | completed | False | 0.9220 |
+| EXP-049 | arima-z2-3 | full | EXP-022 | horizon | arima | 3 | 2 | 5059 | 133.7001 |  | 186.5679 |  | 0.6264 | 1008 | f89e8093 | 2281.9846 | 8 | 2 | 180 | 25.0000 |  |  |  | completed | False | 2.1410 |
+| EXP-050 | arima-z2-6 | full | EXP-022 | horizon | arima | 6 | 2 | 5059 | 198.6134 |  | 272.7115 |  | 0.9305 | 1008 | f89e8093 | 2281.9846 | 8 | 1 | 330 | 44.2857 |  |  |  | completed | False | 0.8910 |
+| EXP-051 | arima-z3-3 | full | EXP-023 | horizon | arima | 3 | 3 | 5259 | 123.8659 |  | 188.8110 |  | 0.2414 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 130 | 20.0000 |  |  |  | completed | False | 1.9060 |
+| EXP-052 | arima-z3-6 | full | EXP-023 | horizon | arima | 6 | 3 | 5259 | 205.2203 |  | 321.5137 |  | 0.4000 | 1008 | 3adef90e | 2631.7073 | 5 | 0 | 220 | 32.0000 |  |  |  | completed | False | 0.6720 |
+| EXP-053 | lstm-z1-3 | full | EXP-016 | horizon | lstm | 3 | 1 | 5161 | 140.5791 | 4.0925 | 202.6616 | 1.8087 | 0.4767 | 1008 | aeb67261 | 3856.3743 | 12 | 8.0000 | 80.0000 | 29.1667 | 0.0000 | 17.3205 | 1.4434 | completed | False | 81.9220 |
+| EXP-054 | lstm-z1-6 | full | EXP-016 | horizon | lstm | 6 | 1 | 5161 | 173.2767 | 8.4967 | 252.2205 | 15.0099 | 0.5876 | 1008 | aeb67261 | 3856.3743 | 12 | 7.3333 | 130.0000 | 56.3889 | 1.1547 | 0.0000 | 4.2763 | completed | False | 75.6250 |
+| EXP-055 | lstm-z2-3 | full | EXP-024 | horizon | lstm | 3 | 2 | 5059 | 121.2765 | 2.0835 | 168.4942 | 2.5503 | 0.5682 | 1008 | f89e8093 | 2281.9846 | 8 | 3.0000 | 173.3333 | 24.0000 | 0.0000 | 25.1661 | 0.0000 | completed | False | 51.9370 |
+| EXP-056 | lstm-z2-6 | full | EXP-024 | horizon | lstm | 6 | 2 | 5059 | 146.7339 | 0.6944 | 203.0011 | 4.0660 | 0.6874 | 1008 | f89e8093 | 2281.9846 | 8 | 1.0000 | 216.6667 | 50.9524 | 0.0000 | 35.1188 | 4.3644 | completed | False | 40.3750 |
+| EXP-057 | lstm-z3-3 | full | EXP-025 | horizon | lstm | 3 | 3 | 5259 | 108.0919 | 3.6994 | 152.8542 | 3.7494 | 0.2107 | 1008 | 3adef90e | 2631.7073 | 5 | 0.0000 | 46.6667 | 22.0000 | 0.0000 | 15.2753 | 0.0000 | completed | False | 95.8430 |
+| EXP-058 | lstm-z3-6 | full | EXP-025 | horizon | lstm | 6 | 3 | 5259 | 154.8457 | 10.3463 | 216.6665 | 13.3978 | 0.3018 | 1008 | 3adef90e | 2631.7073 | 5 | 0.0000 | 103.3333 | 36.6667 | 0.0000 | 37.8594 | 4.1633 | completed | False | 80.4220 |

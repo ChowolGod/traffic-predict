@@ -37,9 +37,11 @@ def decision_metrics(
     alarm = (y_pred >= thr) & ~imputed
     spans = episodes(congested, merge_gap)
     in_episode = np.zeros(len(y_true), dtype=bool)
+    preparing = np.zeros(len(y_true), dtype=bool)  # v2.3: [s - h, s - 1] = switched on early
     leads = []
     for start, end in spans:
         in_episode[start : end + 1] = True
+        preparing[max(0, start - horizon) : start] = True
         # v2.1: an alarm counts only if issued strictly before s (target τ <= s + h - 1);
         # at issue time s the congestion at s is already observed.
         early = np.flatnonzero(alarm[start : min(end, start + horizon - 1) + 1])
@@ -48,6 +50,6 @@ def decision_metrics(
     return {
         "episodes": len(spans),
         "missed": len(spans) - len(leads),
-        "false_alarm_min": int((alarm & ~in_episode).sum()) * SLOT_MIN,
+        "false_alarm_min": int((alarm & ~in_episode & ~preparing).sum()) * SLOT_MIN,
         "lead_min": float(np.mean(leads)) if leads else None,
     }

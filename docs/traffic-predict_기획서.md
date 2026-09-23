@@ -1,6 +1,6 @@
 # 밀라노 모바일 트래픽 예측 기획서
 
-상태: 동결 (2026-09-23, v2.2)
+상태: 동결 (2026-09-23, v2.3)
 프로필: 데이터·ML 실험
 
 ## 다음 세션에게
@@ -27,8 +27,8 @@
   - (v2) 과소예측(혼잡을 놓침)이 과대예측(괜히 켬)보다 비용이 큼. 최소 유지 시간 값은 4단계에서 결정
 - 남은 일: 구현 진행표 순서대로 구현. 원본을 받으면 F-01의 실제 데이터 확인(진행표 2 비고)을 먼저 끝낸다. 디스크 여유 52GB라 공간 문제는 해소
 - 제약: 마감 없음 · 채점 기준 없음 · 제출물 = GitHub 저장소 README · 구현함
-- 최근 변경: v2.2(2026-09-23) 문구 수정: '셀 단위' → '격자 칸(약 235m) 단위, 지역별 수요 예측'(데이터 해석 주의 반영, 설계 영향 없음). v2.1(2026-09-23) 탐지 조건을 '발행 시각 < 혼잡 시작'으로 엄격화, 리드타임 10~60분. v2(2026-09-23) 목적 추가(무선망 운용 결정), F-12 예측 거리·F-13 결정 지표 추가, 제외 목록에서 '여러 스텝 앞 예측'·'lag-1008' 되살림. test(F-09) 형식은 4단계 변경 통제에서 개정 예정
-- 마지막 실험: v2 full 거리 확장 EXP-026~058(lag-1008 h=1, 5계열 × 3구역 × h 3·6). 60분 뒤 LSTM이 세 구역 모두 MAE 최저(173.3±8.5 / 146.7±0.7 / 154.8±10.3). pytest 209 통과
+- 최근 변경: v2.3(2026-09-23) 결정 6건 확정: (a) 기준선 이름 '마지막 관측값(10분 뒤 예측에서는 10분 전 값)' (b) 경보 = 예측 ≥ 임계치 유지 (c) 혼잡 시작 직전 h칸 안의 경보는 불필요 경보에서 제외 (d) LSTM 결정 지표는 시드별 계산 후 평균±표준편차 (e) 30·60분은 10분 뒤 설정 재사용 (f) 채운 칸은 경보·혼잡에서 제외. v2.2(2026-09-23) 문구 수정: '셀 단위' → '격자 칸(약 235m) 단위, 지역별 수요 예측'(데이터 해석 주의 반영, 설계 영향 없음). v2.1(2026-09-23) 탐지 조건을 '발행 시각 < 혼잡 시작'으로 엄격화, 리드타임 10~60분. v2(2026-09-23) 목적 추가(무선망 운용 결정), F-12 예측 거리·F-13 결정 지표 추가, 제외 목록에서 '여러 스텝 앞 예측'·'lag-1008' 되살림. test(F-09) 형식은 4단계 변경 통제에서 개정 예정
+- 마지막 실험: v2 full 거리 확장 EXP-026~058. v2.3 정의로 결정 지표 재계산(재학습 없음). 60분 뒤 LSTM이 세 구역 모두 MAE 최저(173.3±8.5 / 146.7±0.7 / 154.8±10.3). pytest 211 통과
 - 구현 환경(2026-09-23 확인): 커밋은 기능 완료마다 자동(`feat(F-xx): …`, push 안 함). 원본은 기본 경로 `data/raw`(사용자가 받는 중). CPU만 사용. 디스크 여유 52GB
 
 ## 1. 개요
@@ -93,7 +93,7 @@
 | F-08 | 실험 기록·재현 | 실험마다 설정·부모 실험·바꾼 요소·이유·가설·시드·결과를 저장하고, 전체 결과 표를 자동 갱신 | (1) 실험 폴더에 설정·지표·예측·곡선이 있음 (2) 부모 대비 바뀐 설정 키가 정확히 1개가 아니면 실행 거부 (3) 결과 표 한 곳에 모든 실험이 나열됨 | E-4001, E-4002, E-4003 |
 | F-09 | test 1회 평가 | 전체 기간에서 계열별 최종 설정(lag-144, lag-1, ARIMA 최선, LSTM 최선)을 한 번에 test로 평가하고 잠금. (v2) 거리·결정 지표·시뮬레이션을 포함하는 형식은 4단계 변경 통제에서 개정하며, 그 전에는 실행하지 않음 | (1) 두 번째 실행은 오류로 거부됨 (2) `--confirm`이 없거나 dirty면 거부됨 (3) test 결과 표에 MAE·RMSE·상대 MAE·lag-144 대비 차이의 95% 신뢰구간이 있음 (4) 부트스트랩이 같은 시드에서 같은 구간을 냄 (5) (v2) 선택 규칙의 후보는 같은 horizon의 실험만 | E-4005, E-4006 |
 | F-12 | (v2) 예측 거리 확장 | 실험 설정 `horizon` ∈ {1, 3, 6}(10/30/60분). 시점 o = t − h까지의 관측만으로 y[t]를 예측. naive는 ŷ_t = y[t − max(lag, h)], ARIMA는 train 적합 파라미터로 h스텝 앞 예측(재적합 없음), LSTM은 입력 창이 t − h에서 끝나고 거리마다 따로 학습(direct) | (1) 기존 실험은 재실행 없이 horizon=1로 간주 (2) naive 예측이 y[t − max(lag, h)]와 정확히 같음 (3) ARIMA h스텝 예측이 원점별 statsmodels `apply`+`forecast(h)` 결과와 1e-6 이내 일치, 재적합 없음 (4) LSTM·ARIMA 모두 y[t − h + 1] 이후 값을 바꿔도 ŷ_t가 그대로(인과성) (5) 비교·선택은 같은 horizon끼리 (6) `results`가 거리별 표 `results/horizon.md`와 그래프 `results/figures/horizon_mae.png` 생성 (7) 실험당 30분 제한 유지 | E-4001, E-4004 |
-| F-13 | (v2) 결정 수준 평가 | 구역별 혼잡 임계치 θ = `threshold_ratio` × train `peak_quantile` 백분위수(기본 0.7 × P99). 저장된 예측에서 놓친 혼잡 횟수, 불필요 경보 시간, 평균 리드타임을 계산(정의는 3.3) | (1) 손으로 계산한 예제와 일치(구간 병합, 탐지·놓침, 리드타임, 불필요 경보 시간, (v2.1) 시작 시각에 발행된 경보는 놓침) (2) 결과 표에 모델·구역·거리별 결정 지표가 있음 (3) `configs/decision.yaml`을 바꾸고 `results`만 다시 돌리면 재학습 없이 반영됨 (4) LSTM은 시드 평균 예측으로 계산 (5) 채운 칸은 경보·혼잡 판정에서 제외 | E-2001 |
+| F-13 | (v2) 결정 수준 평가 | 구역별 혼잡 임계치 θ = `threshold_ratio` × train `peak_quantile` 백분위수(기본 0.7 × P99). 저장된 예측에서 놓친 혼잡 횟수, 불필요 경보 시간, 평균 리드타임을 계산(정의는 3.3) | (1) 손으로 계산한 예제와 일치(구간 병합, 탐지·놓침, 리드타임, 불필요 경보 시간, (v2.1) 시작 시각에 발행된 경보는 놓침) (2) 결과 표에 모델·구역·거리별 결정 지표가 있음 (3) `configs/decision.yaml`을 바꾸고 `results`만 다시 돌리면 재학습 없이 반영됨 (4) (v2.3) LSTM은 시드별로 계산한 뒤 평균±표준편차(ddof=1) (5) 채운 칸은 경보·혼잡 판정에서 제외 (6) (v2.3) 혼잡 시작 직전 h칸 안의 경보는 불필요 경보로 세지 않음 | E-2001 |
 
 ### Should
 | ID | 이름 | 설명 | 완료 조건 |
@@ -171,7 +171,7 @@
 | val 수치의 성격 | val은 **선택용**이라 모든 계열이 낙관적으로 편향되고, 조기 종료까지 val로 하는 LSTM은 더 편향됨. 공정한 비교는 test뿐임을 결과 표 머리말과 README에 적음 | 레드팀 #3. 분할을 복잡하게 만들지 않고 명시로 처리 |
 | 학습 데이터 범위 | 모든 모델은 train으로만 학습(ARIMA 적합, LSTM 가중치·스케일러). val·test 구간에서는 실제 관측을 입력으로만 반영하고, train+val로 다시 학습하지 않음 | 계열 간 조건을 같게 함. README에 명시 |
 | 예측 거리 (v2) | 설정 `horizon` ∈ {1, 3, 6}. 대상 시각 t의 예측은 시점 o = t − h까지의 관측만 씀. 평가 대상 시각 집합은 거리와 무관하게 같음(val의 채우지 않은 칸). 기존 실험의 설정에 `horizon`이 없으면 1로 간주(파일은 고치지 않음). 루트 실험은 horizon=1 | 거리마다 같은 문제를 같은 조건에서 비교 |
-| 결정 지표 (v2) | 임계치 θ = `threshold_ratio` × train의 `peak_quantile` 백분위수(구역별, `configs/decision.yaml`, 기본 0.7·0.99·병합 1칸). **경보**: ŷ_t ≥ θ이면 t에 대한 경보(발행 시각 t − h). **혼잡 구간**: 실제 y ≥ θ인 연속 칸, 사이의 끊김이 `merge_gap`칸 이하면 이어 붙임(끊김 칸도 구간에 포함). **탐지**: 구간 [s, e]에 대해 대상 시각 τ ∈ [s, min(e, s + h − 1)]인 경보가 있으면 탐지(발행 시각 τ − h < s, 즉 혼잡이 관측되기 전). **리드타임** = s − (가장 이른 그런 경보의 발행 시각), 10~h×10분(v2.1: 발행 시각 = s는 이미 혼잡을 본 뒤라 탐지로 인정하지 않음). **놓친 혼잡** = 구간 수 − 탐지 수. **불필요 경보 시간** = 혼잡 구간 밖 경보 칸 수 × 10분. 채운 칸은 경보·혼잡에서 제외. LSTM은 시드 평균 예측 사용. val 구간 안에서만 계산 | 혼잡을 미리 알리는 목적에 맞춤. 저장된 예측에서 사후 계산하므로 정의를 바꿔도 재학습 불필요 |
+| 결정 지표 (v2) | 임계치 θ = `threshold_ratio` × train의 `peak_quantile` 백분위수(구역별, `configs/decision.yaml`, 기본 0.7·0.99·병합 1칸). **경보**: ŷ_t ≥ θ이면 t에 대한 경보(발행 시각 t − h). **혼잡 구간**: 실제 y ≥ θ인 연속 칸, 사이의 끊김이 `merge_gap`칸 이하면 이어 붙임(끊김 칸도 구간에 포함). **탐지**: 구간 [s, e]에 대해 대상 시각 τ ∈ [s, min(e, s + h − 1)]인 경보가 있으면 탐지(발행 시각 τ − h < s, 즉 혼잡이 관측되기 전). **리드타임** = s − (가장 이른 그런 경보의 발행 시각), 10~h×10분(v2.1: 발행 시각 = s는 이미 혼잡을 본 뒤라 탐지로 인정하지 않음). **놓친 혼잡** = 구간 수 − 탐지 수. **불필요 경보 시간** = 혼잡 구간 밖이면서 (v2.3) 어느 혼잡 구간의 시작 직전 h칸([s − h, s − 1])에도 들지 않는 경보 칸 수 × 10분(미리 켠 경보는 준비 시간으로 보고 벌점을 주지 않음). 채운 칸은 경보·혼잡에서 제외. (v2.3) LSTM은 시드별로 계산한 뒤 평균±표준편차(ddof=1), 리드타임 평균은 탐지가 있는 시드만. 경보 조건은 예측 ≥ θ(b1). val 구간 안에서만 계산 | 혼잡을 미리 알리는 목적에 맞춤. 저장된 예측에서 사후 계산하므로 정의를 바꿔도 재학습 불필요 |
 | 상대 MAE | `rel_mae` = 모델 MAE ÷ 같은 계열·같은 평가 시각에서 계산한 lag-144 MAE. lag-144 MAE는 실험마다 M-10이 내부적으로 계산(따로 실험을 만들지 않음) | 구역 간 평균과 README 가독성 |
 | 불확실성(test) | 계열마다 "모델 MAE − lag-144 MAE"의 95% 신뢰구간을 **일별 블록 부트스트랩**으로 계산(블록 = Europe/Rome 하루 144칸, 반복 2000, 시드 0, 백분위수 방식). test가 7일이라 블록이 7개뿐이어서 구간이 거칠다는 점을 한계로 적음 | test 1주 단일 구간에서 우연한 차이인지 판단 |
 | 코드 상태 | full 단계의 `run`·`sweep`과 `test`는 git 작업 트리가 dirty면 거부(E-4001, E-4006). dev는 경고만 하고 `git_dirty=true`로 기록 | 결과가 어느 커밋에서 나왔는지 보장 |
@@ -328,13 +328,13 @@
 
 **D-07 예측** (`predictions.parquet`): `time_utc, segment(train|val), y_true, y_pred, seed`(LSTM이 아니면 −1), `is_imputed`. test 행은 없음.
 **D-08 지표** (`metrics.json`): `{val: {mae, rmse, rel_mae, n}, val_std: {mae, rmse}|null, seeds: {"0": {mae, rmse}, …}|null}`. LSTM의 `val`은 시드별 지표의 평균, `val_std`는 ddof=1 표준편차. naive·ARIMA는 `val_std`와 `seeds`가 null. n은 채점한 시각의 수.
-**D-09 결과 표** (`results/results.csv·md`): `exp_id, name, phase, parent, changed, model_type, horizon, zone_rank, square_id, val_mae, val_mae_std, val_rmse, val_rmse_std, val_rel_mae, n, compare_group, dec_threshold, dec_episodes, dec_missed, dec_false_alarm_min, dec_lead_min, status, post_test, duration_s`(v2: `horizon`, `dec_*` 추가. `dec_*`는 M-18로 계산, 구역 시계열이 없으면 빈칸). `compare_group`은 (phase, square_id, 평가 시각 집합, `AGG_VERSION`, `IMPUTE_VERSION`)의 해시 앞 8자리.
+**D-09 결과 표** (`results/results.csv·md`): `exp_id, name, phase, parent, changed, model_type, horizon, zone_rank, square_id, val_mae, val_mae_std, val_rmse, val_rmse_std, val_rel_mae, n, compare_group, dec_threshold, dec_episodes, dec_missed, dec_false_alarm_min, dec_lead_min, dec_missed_std, dec_false_alarm_min_std, dec_lead_min_std, status, post_test, duration_s`(v2: `horizon`, `dec_*` 추가. `dec_*`는 M-18로 계산, 구역 시계열이 없으면 빈칸. (v2.3) `dec_*_std`는 LSTM 시드 간 표준편차, 다른 계열은 빈칸). `compare_group`은 (phase, square_id, 평가 시각 집합, `AGG_VERSION`, `IMPUTE_VERSION`)의 해시 앞 8자리.
 **D-10 test** (`results/test/`): `metrics.csv·md`(행: 계열 × zone_rank. 열: square_id, MAE, RMSE, rel_mae, mae_diff_vs_lag144, ci_low, ci_high. LSTM은 D-08과 같은 정의로 평균±표준편차이고, 신뢰구간은 시드 평균 예측 오차로 계산. F-11이면 구역 평균 행 추가(rel_mae 평균)), `predictions.parquet`(`family, zone_rank, square_id, time_utc, y_true, y_pred, seed, is_imputed`), `LOCK`(`{evaluated_at, final: {...}, git_commit}`).
 **D-11 모델 산출물** (실험 폴더의 `model/`): naive는 없음. ARIMA는 `arima_params.json`(order, seasonal, fourier_k, 적합된 파라미터 벡터). LSTM은 `lstm_seed{n}.pt`(최저 val 손실 시점의 state_dict)와 `scaler.json`(train 통계). I-05는 이 파일만 불러와 예측하고 재학습하지 않음.
 **D-12 경로 설정**: `raw_dir`는 환경 변수 `TP_RAW_DIR`로 정하고, 없으면 `data/raw`. 캐시·처리 데이터 경로(`data/interim`, `data/processed`)는 저장소 기준으로 고정.
 **D-13 실험 메타** (`meta.json`): `id, parent, changed, reason, hypothesis, status(running|completed|failed), error_code, post_test, config_hash, git_commit, git_dirty, started_at, ended_at, duration_s, pid`, 구현 추가 필드 `square_id, agg_version, impute_version, compare_group`.
 **D-14 결정 설정** (v2, `configs/decision.yaml`): `{threshold_ratio: 0.7, peak_quantile: 0.99, merge_gap: 1, report_horizon: 6}`. 검증은 E-2001. `report_horizon`은 결정 지표를 대표로 보고하는 거리.
-**D-15 거리별 비교** (v2, `results/horizon.md`, `results/figures/horizon_mae.png`): full 단계에서 (구역, 거리, 계열)마다 선택 규칙상 최선 실험의 val MAE(LSTM은 ±표준편차)와 `report_horizon`의 결정 지표. 계열은 lag-1(마지막 관측값), lag-144, lag-1008, ARIMA, LSTM. 그래프는 구역별 패널 3개, x축 거리(10/30/60분), y축 val MAE, 계열별 선(팔레트 1~5번 고정 순서)과 범례·끝 라벨.
+**D-15 거리별 비교** (v2, `results/horizon.md`, `results/figures/horizon_mae.png`): full 단계에서 (구역, 거리, 계열)마다 선택 규칙상 최선 실험의 val MAE(LSTM은 ±표준편차)와 `report_horizon`의 결정 지표. 계열은 마지막 관측값(lag-1. 10분 뒤 예측에서는 10분 전 값, 거리 h에서는 예측 시점의 값 y[t − h]), 어제 같은 시각(lag-144), 지난주 같은 시각(lag-1008), ARIMA, LSTM. LSTM 결정 지표는 평균±표준편차. 그래프는 구역별 패널 3개, x축 거리(10/30/60분), y축 val MAE, 계열별 선(팔레트 1~5번 고정 순서)과 범례·끝 라벨.
 
 ### 4.5 기술 스택·폴더 구조·명령·실행 자산
 **스택** (Python 3.12. uv로 설치하고 `uv.lock`에 정확한 버전을 고정. 3.14가 설치되어 있지만 torch·statsmodels 휠 호환성 때문에 3.12를 씀)
@@ -408,6 +408,10 @@ uv run ruff format --check src tests
 | (v2) ARIMA h스텝은 칼만 예측 상태 전개 | 원점마다 apply+forecast | 결과는 같고(테스트로 대조) 훨씬 빠름 |
 | (v2) LSTM은 거리마다 따로 학습(direct) | 1스텝 반복 적용(recursive) | 구현 단순, 오차 누적 없음 |
 | (v2) 결정 지표는 저장된 예측에서 `results`가 계산 | 실험 실행 때 계산 | 임계치·정의 변경 시 재학습 불필요 |
+| (v2.3) 기준선 이름 '마지막 관측값(10분 뒤 예측에서는 10분 전 값)' | 대상 시각의 10분 전 값 y[t − 1] | 먼 거리에서 y[t − 1]은 예측 시점 이후 값이라 누수. 계산은 그대로, 이름만 명확히 |
+| (v2.3) 혼잡 시작 직전 h칸 안의 경보는 불필요 경보에서 제외 | 구간 밖 경보 모두 벌점(v2) | 미리 켠 경보를 벌점으로 세면 리드타임과 모순되어 일찍 경보하는 모델이 불리해짐 |
+| (v2.3) LSTM 결정 지표는 시드별 계산 후 평균±표준편차 | 시드 평균 예측(v2) | 시드 평균 예측은 사실상 3개 모델 앙상블이라 ARIMA보다 유리함. MAE 표와 같은 방식으로 공정하게 비교 |
+| (v2.3) 경보 조건 예측 ≥ θ, 30·60분은 10분 뒤 설정 재사용, 채운 칸 제외는 유지 | k×θ 경보, 거리별 재조정, 채운 값 사용 | 3단계는 같은 조건의 모델 비교. 비대칭 비용은 4단계에서 다룸 |
 | (v2) test(F-09) 형식 개정은 4단계 변경 통제로 미룸 | 지금 개정 | test는 1~4 확정 뒤 한 번. 시뮬레이션 설계 전에 형식을 정하면 다시 바뀜 |
 
 ## 동결 체크리스트
@@ -444,3 +448,4 @@ uv run ruff format --check src tests
 | 14 | F-12 | (v2) M-07(horizon, lag-1008), M-08(h스텝), M-09(창 t − h), M-11(horizon 키·기본값·루트·샘플 수), M-14(선택 규칙 같은 horizon) / 테스트(naive 정확값, ARIMA 기준 방법 대조 1e-6, 인과성, 기존 실험 horizon=1 간주) | 완료 | 2026-09-23. pytest 190 통과. ARIMA h스텝(칼만 예측 상태 전개)이 원점별 filter+forecast와 1e-6 이내 일치(none·diff144·fourier × h 3·6), 인과성 확인. 기존 실험 25개는 설정에 horizon이 없어 1로 읽힘(파일 수정 없음). 완료 조건 (6) 거리별 표·그래프는 15(F-13, M-12)에서. 알려진 제약: horizon이 해시에 들어가 v1에서 실패한 실험(EXP-015)은 `--retry` 시 설정 해시가 달라 E-4003 |
 | 15 | F-13 | (v2) M-18, M-15(`load_decision`), M-12(horizon·dec_* 열, D-15 표·그래프) / 테스트(손계산 예제, 설정 변경 반영, E-2001) | 완료 | 2026-09-23. pytest 208 통과. 손계산 예제(구간 병합·탐지·놓침·리드타임·불필요 경보) 일치, 설정 변경이 재학습 없이 반영됨을 확인. 구현 중 발견한 버그: 결과 표에서 naive lag가 실수(1.0)로 읽혀 거리별 표에서 기준선이 빠지던 문제 → 정수 변환, 테스트로 고정. 팔레트 검증기(Node) 없음 → 문서화된 기본 팔레트 1~5번 + 계열별 마커 모양으로 보완 |
 | 16 | 운영 | (v2) full: lag-1008 h=1 3개 + h=3·6 × 5계열 × 3구역 30개 → 거리별 표·그래프·결정 지표 | 완료 | 2026-09-23. EXP-026~058 33개 모두 완료(약 10분). 60분 뒤 val MAE(구역 5161/5059/5259): 마지막 관측값 349/259/252, lag-144 295/213/513, lag-1008 214/203/185, ARIMA 258/199/205, LSTM 173/147/155. 결정 지표(60분, v2.1 정의)는 `results/horizon.md` |
+| 17 | F-13 개정 | (v2.3) M-18(시작 직전 h칸 경보 제외), M-12(LSTM 시드별 결정 지표·표준편차 열, 기준선 이름) / 테스트(손계산 예제 갱신, 사전 경보 제외, 시드별 평균·표준편차) | 완료 | 2026-09-23 사용자 결정. pytest 211 통과. 60분 뒤 결정 지표 재계산(`results/horizon.md`): 사전 경보 제외로 불필요 경보가 대부분 줄고(예: 5161 LSTM 180→130분), LSTM은 시드별 평균±표준편차(예: 5161 놓침 7.3±1.2/12) |

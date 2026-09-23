@@ -315,11 +315,12 @@ def test_results_table_lists_all_experiments(prepared):
     assert run(child(changed="naive.lag", naive={"lag": 1})) == 0
     table = pd.read_csv(config.RESULTS_DIR / "results.csv")
     assert list(table["exp_id"]) == ["EXP-001", "EXP-002"]
-    expected_cols = [  # D-09 (v2: horizon, dec_* added)
+    expected_cols = [  # D-09 (v2: horizon, dec_*; v2.3: dec_*_std)
         "exp_id", "name", "phase", "parent", "changed", "model_type", "horizon", "zone_rank",
         "square_id", "val_mae", "val_mae_std", "val_rmse", "val_rmse_std", "val_rel_mae", "n",
         "compare_group", "dec_threshold", "dec_episodes", "dec_missed", "dec_false_alarm_min",
-        "dec_lead_min", "status", "post_test", "duration_s",
+        "dec_lead_min", "dec_missed_std", "dec_false_alarm_min_std", "dec_lead_min_std",
+        "status", "post_test", "duration_s",
     ]  # fmt: skip
     assert list(table.columns) == expected_cols
     assert table["compare_group"].nunique() == 1

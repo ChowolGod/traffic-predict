@@ -24,8 +24,16 @@ def metrics(y_true, y_pred, horizon=3, merge_gap=1, imputed=None):
 
 # --- (1) 손계산 예제 ------------------------------------------------------------------------
 def test_hand_example():
+    # v2.3: alarm 0 lies in [s - h, s - 1] = [-2, 0] of episode [1, 4] → early, not unnecessary
     out = metrics(Y_TRUE, pred_with_alarms([0, 3, 10, 11]))
-    assert out == {"episodes": 2, "missed": 1, "false_alarm_min": 30, "lead_min": 10.0}
+    assert out == {"episodes": 2, "missed": 1, "false_alarm_min": 20, "lead_min": 10.0}
+
+
+def test_alarms_just_before_an_episode_are_not_unnecessary():
+    # episode [7, 9]; with h=3 the preparation window is [4, 6]
+    assert metrics(Y_TRUE, pred_with_alarms([5, 6]), horizon=3)["false_alarm_min"] == 0
+    # with h=1 the window is only [6, 6], so slot 5 counts
+    assert metrics(Y_TRUE, pred_with_alarms([5]), horizon=1)["false_alarm_min"] == 10
 
 
 def test_merge_gap_changes_episode_count():
@@ -113,8 +121,17 @@ def test_results_table_has_decision_columns_and_follows_config(workspace, monkey
     assert run(ROOT_CFG) == 0
     assert run(child(changed="naive.lag", naive={"lag": 1})) == 0
     table = pd.read_csv(config.RESULTS_DIR / "results.csv").set_index("exp_id")
-    for col in ("horizon", "dec_threshold", "dec_episodes", "dec_missed", "dec_false_alarm_min",
-                "dec_lead_min"):  # fmt: skip
+    for col in (
+        "horizon",
+        "dec_threshold",
+        "dec_episodes",
+        "dec_missed",
+        "dec_false_alarm_min",
+        "dec_lead_min",
+        "dec_missed_std",
+        "dec_false_alarm_min_std",
+        "dec_lead_min_std",
+    ):
         assert col in table.columns
     assert (table["horizon"] == 1).all()
     before = table.loc["EXP-002", "dec_threshold"]
@@ -130,16 +147,41 @@ def test_results_table_has_decision_columns_and_follows_config(workspace, monkey
     assert after.loc["EXP-002", "dec_threshold"] == pytest.approx(before / 2)
 
 
-def test_lstm_decision_uses_seed_mean():
+def test_lstm_decision_is_per_seed_mean_and_std():
     from tp.exp import results
 
-    t = pd.date_range("2013-11-14", periods=4, freq="10min", tz="UTC")
+    t = pd.date_range("2013-11-14", periods=len(Y_TRUE), freq="10min", tz="UTC")
+    seed0, seed1 = pred_with_alarms([3]), pred_with_alarms([3, 8])
     pred = pd.DataFrame({
-        "time_utc": np.tile(t, 2), "segment": "val", "y_true": [0.0, 12, 0, 0] * 2,
-        "y_pred": [0.0, 14, 0, 0, 0, 7, 0, 0], "seed": [0] * 4 + [1] * 4, "is_imputed": False,
+        "time_utc": np.tile(t, 2), "segment": "val", "y_true": np.tile(Y_TRUE, 2),
+        "y_pred": np.r_[seed0, seed1], "seed": [0] * len(t) + [1] * len(t), "is_imputed": False,
     })  # fmt: skip
-    mean = results.seed_mean(pred)
-    assert list(mean["y_pred"]) == [0.0, 10.5, 0.0, 0.0]  # seed mean 10.5 ≥ 10 → alarm
+    out = results.decision_by_seed(pred, 10.0, horizon=3, merge_gap=1)
+    # seed 0: misses [7, 9], lead 10 / seed 1: detects both, leads 10 and 20 → 15
+    assert out["dec_episodes"] == 2
+    assert out["dec_missed"] == pytest.approx(0.5)
+    assert out["dec_missed_std"] == pytest.approx(np.std([1, 0], ddof=1))
+    assert out["dec_lead_min"] == pytest.approx(12.5)
+    assert out["dec_lead_min_std"] == pytest.approx(np.std([10, 15], ddof=1))
+    assert out["dec_false_alarm_min"] == 0 and out["dec_false_alarm_min_std"] == 0
+
+
+def test_single_model_decision_has_no_std():
+    from tp.exp import results
+
+    t = pd.date_range("2013-11-14", periods=len(Y_TRUE), freq="10min", tz="UTC")
+    pred = pd.DataFrame(
+        {
+            "time_utc": t,
+            "segment": "val",
+            "y_true": Y_TRUE,
+            "y_pred": pred_with_alarms([3]),
+            "seed": -1,
+            "is_imputed": False,
+        }
+    )
+    out = results.decision_by_seed(pred, 10.0, horizon=3, merge_gap=1)
+    assert out["dec_missed"] == 1 and out["dec_missed_std"] is None
 
 
 # --- D-15 거리별 표·그래프 (F-12 완료 조건 6) -------------------------------------------------

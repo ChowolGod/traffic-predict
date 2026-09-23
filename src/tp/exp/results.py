@@ -8,6 +8,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import yaml  # noqa: E402
 
@@ -22,24 +23,28 @@ COLUMNS = [
     "exp_id", "name", "phase", "parent", "changed", "model_type", "horizon", "zone_rank",
     "square_id", "val_mae", "val_mae_std", "val_rmse", "val_rmse_std", "val_rel_mae", "n",
     "compare_group", "dec_threshold", "dec_episodes", "dec_missed", "dec_false_alarm_min",
-    "dec_lead_min", "status", "post_test", "duration_s",
+    "dec_lead_min", "dec_missed_std", "dec_false_alarm_min_std", "dec_lead_min_std",
+    "status", "post_test", "duration_s",
 ]  # fmt: skip
 
 NOTE = (
     "val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니다(조기 종료까지 val로 하는 "
     "LSTM은 더 편향됨). 계열 간 공정한 비교는 test 결과(`results/test/`)만 해당합니다. "
     "`compare_group`과 `horizon`이 같은 행끼리만 비교할 수 있습니다. `dec_*`는 각 실험의 "
-    "거리 기준 결정 지표입니다(`configs/decision.yaml`)."
+    "거리 기준 결정 지표입니다(`configs/decision.yaml`). LSTM의 `dec_*`는 시드별로 계산한 "
+    "평균이고 `dec_*_std`는 시드 간 표준편차입니다."
 )
 
 # Family order is fixed so colour follows the entity (dataviz: palette slots 1-5, never cycled).
+# (key, chart label, table label, colour, marker)
 FAMILIES = [
-    ("lag1", "last value (persistence)", "#2a78d6", "o"),
-    ("lag144", "same time yesterday (lag 144)", "#eb6834", "s"),
-    ("lag1008", "same time last week (lag 1008)", "#1baf7a", "^"),
-    ("arima", "ARIMA", "#eda100", "D"),
-    ("lstm", "LSTM", "#e87ba4", "v"),
-]
+    ("lag1", "last observed value (= 10 min ago at 10-min horizon)",
+     "마지막 관측값(10분 뒤 예측에서는 10분 전 값)", "#2a78d6", "o"),
+    ("lag144", "same time yesterday (lag 144)", "어제 같은 시각(lag-144)", "#eb6834", "s"),
+    ("lag1008", "same time last week (lag 1008)", "지난주 같은 시각(lag-1008)", "#1baf7a", "^"),
+    ("arima", "ARIMA", "ARIMA", "#eda100", "D"),
+    ("lstm", "LSTM", "LSTM", "#e87ba4", "v"),
+]  # fmt: skip
 HORIZONS = (1, 3, 6)
 SURFACE, INK, INK_2, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e8e7e3"
 
@@ -49,17 +54,28 @@ def family_of(model_type: str, lag: float | None) -> str:
     return f"lag{int(lag)}" if model_type == "naive" else model_type
 
 
-def seed_mean(pred: pd.DataFrame) -> pd.DataFrame:
-    """One prediction per target time (LSTM seeds averaged), sorted by time."""
-    return (
-        pred.groupby("time_utc", sort=True)
-        .agg(
-            y_true=("y_true", "first"),
-            y_pred=("y_pred", "mean"),
-            is_imputed=("is_imputed", "first"),
-        )
-        .reset_index()
-    )
+def _mean_std(values: list) -> tuple[float | None, float | None]:
+    present = [v for v in values if v is not None]
+    if not present:
+        return None, None
+    std = float(np.std(present, ddof=1)) if len(values) > 1 and len(present) > 1 else None
+    return float(np.mean(present)), std
+
+
+def decision_by_seed(pred: pd.DataFrame, thr: float, horizon: int, merge_gap: int) -> dict:
+    """Decision metrics per seed, then mean (and ddof=1 std across LSTM seeds; plan v2.3)."""
+    per_seed = []
+    for _, group in pred.sort_values("time_utc").groupby("seed", sort=True):
+        per_seed.append(decision.decision_metrics(
+            group["y_true"].to_numpy(), group["y_pred"].to_numpy(),
+            group["is_imputed"].to_numpy(bool), thr, horizon, merge_gap,
+        ))  # fmt: skip
+    out = {"dec_threshold": thr, "dec_episodes": per_seed[0]["episodes"]}
+    for key in ("missed", "false_alarm_min", "lead_min"):
+        mean, std = _mean_std([m[key] for m in per_seed])
+        out[f"dec_{key}"] = mean if len(per_seed) > 1 else per_seed[0][key]
+        out[f"dec_{key}_std"] = std if len(per_seed) > 1 else None
+    return out
 
 
 class _Series:
@@ -89,12 +105,8 @@ def _decision(folder: Path, cfg: dict, meta: dict, series: _Series) -> dict:
     if thr is None:
         return {}
     pred = pd.read_parquet(folder / "predictions.parquet")
-    val = seed_mean(pred[pred["segment"] == "val"])
-    out = decision.decision_metrics(
-        val["y_true"].to_numpy(), val["y_pred"].to_numpy(), val["is_imputed"].to_numpy(bool),
-        thr, cfg.get("horizon", 1), series.dcfg.merge_gap,
-    )  # fmt: skip
-    return {"dec_threshold": thr, **{f"dec_{k}": v for k, v in out.items()}}
+    val = pred[pred["segment"] == "val"]
+    return decision_by_seed(val, thr, cfg.get("horizon", 1), series.dcfg.merge_gap)
 
 
 def load_rows(dcfg: decision.DecisionConfig | None = None) -> list[dict]:
@@ -153,6 +165,15 @@ def _best(rows: pd.DataFrame) -> pd.DataFrame:
     return full.groupby(["zone_rank", "horizon", "family"], as_index=False).first()
 
 
+def _num(value, std) -> str:
+    """Integer-like values as ints, LSTM seed means with one decimal and ±std."""
+    if pd.isna(value):
+        return ""
+    if pd.notna(std):
+        return f"{value:.1f}±{std:.1f}"
+    return f"{value:.0f}"
+
+
 def _horizon_table(best: pd.DataFrame, report_horizon: int) -> str:
     minutes = {h: f"{h * 10}분" for h in HORIZONS}
     lines = [
@@ -161,7 +182,9 @@ def _horizon_table(best: pd.DataFrame, report_horizon: int) -> str:
         "LSTM은 시드 3개 평균±표준편차입니다. 30·60분 실험은 10분 뒤에서 고른 하이퍼파라미터를 "
         "그대로 씁니다. val은 선택용이라 낙관적입니다.", "",
         f"결정 지표는 {report_horizon * 10}분 뒤 예측 기준입니다(`configs/decision.yaml`). "
-        "놓친 혼잡은 '놓침/전체 구간', 불필요 경보와 리드타임은 분 단위입니다.", "",
+        "놓친 혼잡은 '놓침/전체 구간', 불필요 경보와 리드타임은 분 단위입니다. 혼잡 시작 직전 "
+        "거리만큼(60분 뒤 예측이면 60분)의 경보는 미리 켠 것으로 보아 불필요 경보에서 뺍니다. "
+        "LSTM은 시드별 결과의 평균±표준편차입니다.", "",
         "| 구역 | 계열 | " + " | ".join(f"MAE {minutes[h]}" for h in HORIZONS)
         + " | 놓친 혼잡 | 불필요 경보 | 리드타임 |",
         "|---|---|" + "---|" * (len(HORIZONS) + 3),
@@ -169,7 +192,7 @@ def _horizon_table(best: pd.DataFrame, report_horizon: int) -> str:
     for zone in sorted(best["zone_rank"].unique()):
         zb = best[best["zone_rank"] == zone]
         square = int(zb["square_id"].iloc[0])
-        for family, label, _, _ in FAMILIES:
+        for family, _, label, _, _ in FAMILIES:
             fb = zb[zb["family"] == family].set_index("horizon")
             if fb.empty:
                 continue
@@ -183,9 +206,11 @@ def _horizon_table(best: pd.DataFrame, report_horizon: int) -> str:
                 cells.append(f"{r['val_mae']:.1f}{std} ({r['exp_id']})")
             if report_horizon in fb.index and pd.notna(fb.loc[report_horizon, "dec_episodes"]):
                 r = fb.loc[report_horizon]
-                lead = "" if pd.isna(r["dec_lead_min"]) else f"{r['dec_lead_min']:.0f}"
-                dec = [f"{int(r['dec_missed'])}/{int(r['dec_episodes'])}",
-                       f"{int(r['dec_false_alarm_min'])}", lead]  # fmt: skip
+                dec = [
+                    f"{_num(r['dec_missed'], r['dec_missed_std'])}/{int(r['dec_episodes'])}",
+                    _num(r["dec_false_alarm_min"], r["dec_false_alarm_min_std"]),
+                    _num(r["dec_lead_min"], r["dec_lead_min_std"]),
+                ]
             else:
                 dec = ["", "", ""]
             lines.append(f"| {square} | {label} | " + " | ".join(cells + dec) + " |")
@@ -200,7 +225,7 @@ def _horizon_figure(best: pd.DataFrame, path: Path) -> None:
     for ax, zone in zip(axes[0], zones, strict=True):
         zb = best[best["zone_rank"] == zone]
         ax.set_facecolor(SURFACE)
-        for family, label, color, marker in FAMILIES:
+        for family, label, _, color, marker in FAMILIES:
             fb = zb[zb["family"] == family].sort_values("horizon")
             if fb.empty:
                 continue
