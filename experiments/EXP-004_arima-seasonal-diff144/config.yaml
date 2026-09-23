@@ -1,0 +1,20 @@
+id: EXP-004
+name: arima-seasonal-diff144
+phase: dev
+parent: EXP-003
+changed: arima.seasonal
+reason: EXP-003(계절성 없음)은 평일 전환 구간 오차가 남음. 하루 주기를 모델에 넣는 두 방식을 한 요소씩 비교한다
+hypothesis: '하루 주기를 반영하면 평일(목·금) MAE가 줄어 val MAE가 EXP-003(94.16)보다 낮아진다. fourier가
+  diff144보다 낫다: diff144는 전날 값을 빼므로 금→토 전환 오차를 그대로 물려받는다'
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 2
+  - 1
+  - 2
+  seasonal: diff144
+runtime:
+  time_limit_min: 30
+  threads: 4

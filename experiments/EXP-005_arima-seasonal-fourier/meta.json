@@ -1,0 +1,21 @@
+{
+  "id": "EXP-005",
+  "parent": "EXP-003",
+  "changed": "arima.seasonal",
+  "reason": "EXP-003(계절성 없음)은 평일 전환 구간 오차가 남음. 하루 주기를 모델에 넣는 두 방식을 한 요소씩 비교한다",
+  "hypothesis": "하루 주기를 반영하면 평일(목·금) MAE가 줄어 val MAE가 EXP-003(94.16)보다 낮아진다. fourier가 diff144보다 낫다: diff144는 전날 값을 빼므로 금→토 전환 오차를 그대로 물려받는다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "ad1987e604f111a05b6b61442f87b48b4ec15e5508eb62f4b4f18d040fbc946a",
+  "git_commit": "befde724e772afa7a9094e96057dbe5d47cdabb9",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:04:36+00:00",
+  "ended_at": "2026-09-23T09:04:37+00:00",
+  "duration_s": 0.5,
+  "pid": 28084,
+  "square_id": 5259,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "e9ffdf9f"
+}

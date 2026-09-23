@@ -24,7 +24,7 @@
 - 남은 일: 구현 진행표 순서대로 구현. 원본을 받으면 F-01의 실제 데이터 확인(진행표 2 비고)을 먼저 끝낸다. 디스크 여유 52GB라 공간 문제는 해소
 - 제약: 마감 없음 · 채점 기준 없음 · 제출물 = GitHub 저장소 README · 구현함
 - 최근 변경: 없음 (v1)
-- 마지막 실험: dev EXP-003 ARIMA(2,1,2) seasonal none(부모 EXP-001, changed model.type), 구역 5259, val MAE 94.1631 / RMSE 137.0304 / rel_mae 0.1869 (lag-1 EXP-002 MAE 101.4407). 수렴 경고 없음, 1.8초
+- 마지막 실험: dev sweep(부모 EXP-003, arima.seasonal) → EXP-004 diff144 val MAE 142.4173 / EXP-005 fourier(K=3) 105.8979. 둘 다 EXP-003(94.1631)보다 나쁨. diff144+d=1은 과차분 추정(토요일 MAE 186), fourier는 평일 모양을 주말에도 적용(일요일 106.2). 현재 dev 최선: EXP-003
 - 구현 환경(2026-09-23 확인): 커밋은 기능 완료마다 자동(`feat(F-xx): …`, push 안 함). 원본은 기본 경로 `data/raw`(사용자가 받는 중). CPU만 사용. 디스크 여유 52GB
 
 ## 1. 개요
