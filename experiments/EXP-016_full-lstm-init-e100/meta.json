@@ -1,0 +1,21 @@
+{
+  "id": "EXP-016",
+  "parent": "EXP-011",
+  "changed": "phase",
+  "reason": "dev LSTM 최선(EXP-011, window 144, max_epochs 100, val MAE 103.01)을 설정 그대로 full로 옮긴다. dev의 주말 약점이 데이터 부족 때문인지 검증한다",
+  "hypothesis": "train이 38일(주말 10일)로 늘면 주말 오차가 줄어 lag-1보다 낫고 ARIMA(EXP-015)와 비슷하거나 낫다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "ea2b591d092eb4ec3bf508c15a51bf164c1adc86bb846fd7e3d54627c1e8b0f7",
+  "git_commit": "98b916fedb78ba9aaa8bd7aac3de900f85e2f93e",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:37:18+00:00",
+  "ended_at": "2026-09-23T09:39:16+00:00",
+  "duration_s": 117.656,
+  "pid": 29184,
+  "square_id": 5161,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "aeb67261"
+}

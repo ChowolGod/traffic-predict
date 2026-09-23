@@ -1,0 +1,21 @@
+{
+  "id": "EXP-017",
+  "parent": "EXP-003",
+  "changed": "phase",
+  "reason": "dev 최선 ARIMA를 옮긴 EXP-015((5,1,5))가 full 구역 5161에서 최적화 반복 상한(200회)에 걸려 E-3001로 실패했다. dev 차선이자 차이 0.4%로 구분되지 않던 EXP-003((2,1,2))을 설정 그대로 옮긴다",
+  "hypothesis": "(2,1,2)는 full train에서 정상 수렴하고, dev처럼 full val에서도 lag-1(EXP-014 116.83)보다 5~10% 낫다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "2499762dcb2f1fcf256f6798e2c803718e937fbcf232d0de4739e9adde4a705e",
+  "git_commit": "98b916fedb78ba9aaa8bd7aac3de900f85e2f93e",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:40:09+00:00",
+  "ended_at": "2026-09-23T09:40:11+00:00",
+  "duration_s": 2.234,
+  "pid": 13148,
+  "square_id": 5161,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "aeb67261"
+}

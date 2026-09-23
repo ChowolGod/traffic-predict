@@ -1,0 +1,21 @@
+id: EXP-017
+name: full-arima-212
+phase: full
+parent: EXP-003
+changed: phase
+reason: dev 최선 ARIMA를 옮긴 EXP-015((5,1,5))가 full 구역 5161에서 최적화 반복 상한(200회)에 걸려 E-3001로
+  실패했다. dev 차선이자 차이 0.4%로 구분되지 않던 EXP-003((2,1,2))을 설정 그대로 옮긴다
+hypothesis: (2,1,2)는 full train에서 정상 수렴하고, dev처럼 full val에서도 lag-1(EXP-014 116.83)보다
+  5~10% 낫다
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 2
+  - 1
+  - 2
+  seasonal: none
+runtime:
+  time_limit_min: 30
+  threads: 4

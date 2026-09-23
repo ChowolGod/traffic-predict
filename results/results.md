@@ -16,3 +16,8 @@ val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니�
 | EXP-010 | lstm-init | dev | EXP-001 | model.type | lstm | 1 | 5259 | 107.4369 | 1.6576 | 150.2999 | 2.2700 | 0.2133 | 576 | e9ffdf9f | completed | False | 48.4220 |
 | EXP-011 | lstm-epochs100 | dev | EXP-010 | lstm.max_epochs | lstm | 1 | 5259 | 103.0124 | 2.3310 | 145.6739 | 3.0378 | 0.2045 | 576 | e9ffdf9f | completed | False | 62.6570 |
 | EXP-012 | lstm-window24 | dev | EXP-011 | lstm.window | lstm | 1 | 5259 | 114.1215 | 4.4820 | 157.9242 | 5.9282 | 0.2265 | 576 | e9ffdf9f | completed | False | 10.2030 |
+| EXP-013 | full-lag144 | full |  |  | naive | 1 | 5161 | 294.8942 |  | 525.4935 |  | 1.0000 | 1008 | aeb67261 | completed | False | 5.9370 |
+| EXP-014 | full-lag1 | full | EXP-013 | naive.lag | naive | 1 | 5161 | 116.8333 |  | 175.1906 |  | 0.3962 | 1008 | aeb67261 | completed | False | 1.4060 |
+| EXP-015 | full-arima-515 | full | EXP-009 | phase | arima | 1 | 5161 |  |  |  |  |  |  |  | failed | False | 14.0160 |
+| EXP-016 | full-lstm-init-e100 | full | EXP-011 | phase | lstm | 1 | 5161 | 110.8343 | 3.9510 | 160.0432 | 3.1561 | 0.3758 | 1008 | aeb67261 | completed | False | 117.6560 |
+| EXP-017 | full-arima-212 | full | EXP-003 | phase | arima | 1 | 5161 | 109.5478 |  | 164.5672 |  | 0.3715 | 1008 | aeb67261 | completed | False | 2.2340 |

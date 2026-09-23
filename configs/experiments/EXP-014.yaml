@@ -1,0 +1,11 @@
+id: EXP-014
+name: full-lag1
+phase: full
+parent: EXP-013
+changed: naive.lag
+reason: 참고 기준선(직전 값)을 full 구간에서 다시 잰다. dev에서 실질적인 비교 기준이었다
+hypothesis: dev와 같이 lag-144보다 크게 낫고(rel_mae 약 0.2), ARIMA·LSTM이 넘어야 할 벽이 된다
+model:
+  type: naive
+naive:
+  lag: 1

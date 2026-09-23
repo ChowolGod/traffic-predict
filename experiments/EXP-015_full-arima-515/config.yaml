@@ -1,0 +1,19 @@
+id: EXP-015
+name: full-arima-515
+phase: full
+parent: EXP-009
+changed: phase
+reason: dev ARIMA 최선(EXP-009, (5,1,5) 계절성 없음, val MAE 93.82)을 설정 그대로 full로 옮긴다
+hypothesis: 선형 모델이라 train이 38일로 늘어도 크게 달라지지 않으며, full val에서도 lag-1보다 5~10% 낫다
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 5
+  - 1
+  - 5
+  seasonal: none
+runtime:
+  time_limit_min: 30
+  threads: 4

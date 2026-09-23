@@ -1,0 +1,16 @@
+id: EXP-013
+name: full-lag144
+phase: full
+parent: null
+changed: null
+reason: full 단계 루트. 공식 기준선(전날 같은 시각)을 full 구간(train 11/01~12/08, val 12/09~12/15)에서
+  다시 세운다
+hypothesis: dev와 마찬가지로 금→토 전환일(12/14)의 오차가 커서 lag-1보다 크게 나쁘다
+zone_rank: 1
+model:
+  type: naive
+naive:
+  lag: 144
+runtime:
+  time_limit_min: 30
+  threads: 4

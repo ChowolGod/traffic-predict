@@ -1,0 +1,21 @@
+{
+  "id": "EXP-015",
+  "parent": "EXP-009",
+  "changed": "phase",
+  "reason": "dev ARIMA 최선(EXP-009, (5,1,5) 계절성 없음, val MAE 93.82)을 설정 그대로 full로 옮긴다",
+  "hypothesis": "선형 모델이라 train이 38일로 늘어도 크게 달라지지 않으며, full val에서도 lag-1보다 5~10% 낫다",
+  "status": "failed",
+  "error_code": "E-3001",
+  "post_test": false,
+  "config_hash": "239b3ffeaf7c5a9883a50d0ad8118b82d3ddd5c51f50d57c858676d3dd78e7d7",
+  "git_commit": "98b916fedb78ba9aaa8bd7aac3de900f85e2f93e",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:36:59+00:00",
+  "ended_at": "2026-09-23T09:37:13+00:00",
+  "duration_s": 14.016,
+  "pid": 9180,
+  "square_id": 5161,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": null
+}
