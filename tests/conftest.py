@@ -20,7 +20,7 @@ def workspace(tmp_path, monkeypatch):
     configs = tmp_path / "configs"
     configs.mkdir()
     phases = {
-        "dev": {"train": ["2013-11-04", "2013-11-05"], "val": ["2013-11-06", "2013-11-06"], "k": 1}
+        "dev": {"train": ["2013-11-04", "2013-11-04"], "val": ["2013-11-05", "2013-11-05"], "k": 1}
     }
     (configs / "phases.yaml").write_text(yaml.safe_dump(phases), encoding="utf-8")
     monkeypatch.setattr(config, "CONFIGS_DIR", configs)

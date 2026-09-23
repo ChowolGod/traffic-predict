@@ -1,6 +1,7 @@
 """Argument parsing, command dispatch and exit codes (M-16, plan 4.1)."""
 
 import argparse
+import json
 import logging
 import sys
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from tp import config
 from tp.config import PHASES
 from tp.data import cache, zones
 from tp.errors import TPError
+from tp.prep import series
 
 log = logging.getLogger("tp")
 
@@ -20,7 +22,9 @@ def cmd_prepare(args: argparse.Namespace) -> None:
     neighbors = [phase.start - timedelta(days=1), phase.end + timedelta(days=1)]
     built = cache.ensure_daily_caches(days, optional=neighbors, force=args.force)
     cache.write_inspect(built)
-    zones.ensure_zones(phase)
+    zones_file = json.loads(zones.ensure_zones(phase).read_text(encoding="utf-8"))
+    for zone in zones_file["zones"]:
+        series.ensure_series(phase, zone["square_id"])
 
 
 # Filled in as each command is implemented (I-01..I-05).

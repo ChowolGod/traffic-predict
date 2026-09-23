@@ -13,13 +13,13 @@ DAYS = [date(2013, 11, 4), date(2013, 11, 5), date(2013, 11, 6)]
 
 
 def dev_phase():
-    return config.load_phase("dev")  # train 11-04..11-05, val 11-06 (conftest)
+    return config.load_phase("dev")  # train 11-04, val 11-05 (conftest)
 
 
 def train_totals() -> pd.Series:
     frames = pd.concat(pd.read_parquet(cache.cache_path(d)) for d in DAYS)
     local_day = frames["time_utc"].dt.tz_convert(config.TZ).dt.date
-    train = frames[(local_day >= DAYS[0]) & (local_day <= DAYS[1])]
+    train = frames[local_day == DAYS[0]]
     return train.groupby("square_id")["internet"].sum()
 
 
@@ -51,12 +51,12 @@ def test_top_k_by_train_total(workspace):
 def test_val_data_is_not_used(workspace):
     cache.ensure_daily_caches(DAYS)
     before = zones.select_top_zones(dev_phase(), k=3)
-    # val 날짜(11-06) 캐시와, train 날짜 파일에 섞인 11-06 00:00 행에
+    # val 날짜(11-05) 캐시와, train 날짜 파일에 섞인 11-05 00:00 행에
     # 큰 값을 넣어도 결과가 같아야 함
-    overwrite_cache(DAYS[2], frame([row(10000, "2013-11-06 12:00", 1e12)]))
-    tail = pd.read_parquet(cache.cache_path(DAYS[1]))
-    extra = frame([row(10000, "2013-11-06 00:00", 1e12)])
-    overwrite_cache(DAYS[1], pd.concat([tail, extra], ignore_index=True))
+    overwrite_cache(DAYS[1], frame([row(10000, "2013-11-05 12:00", 1e12)]))
+    tail = pd.read_parquet(cache.cache_path(DAYS[0]))
+    extra = frame([row(10000, "2013-11-05 00:00", 1e12)])
+    overwrite_cache(DAYS[0], pd.concat([tail, extra], ignore_index=True))
     after = zones.select_top_zones(dev_phase(), k=3)
     assert after["zones"] == before["zones"]
 
@@ -64,8 +64,7 @@ def test_val_data_is_not_used(workspace):
 def test_tie_breaks_on_smaller_square_id(workspace):
     cache.ensure_daily_caches(DAYS)
     rows = [row(7, "2013-11-04 01:00", 5.0), row(3, "2013-11-04 01:00", 5.0)]
-    overwrite_cache(DAYS[0], frame(rows))
-    overwrite_cache(DAYS[1], frame([row(9, "2013-11-05 01:00", 1.0)]))
+    overwrite_cache(DAYS[0], frame([*rows, row(9, "2013-11-04 02:00", 1.0)]))
     result = zones.select_top_zones(dev_phase(), k=3)
     assert [z["square_id"] for z in result["zones"]] == [3, 7, 9]
 
@@ -77,11 +76,11 @@ def test_deterministic(workspace):
 
 def test_e1001_when_train_cache_missing(workspace):
     cache.ensure_daily_caches(DAYS)
-    cache.cache_path(DAYS[1]).unlink()
+    cache.cache_path(DAYS[0]).unlink()
     with pytest.raises(TPError) as exc:
         zones.select_top_zones(dev_phase(), k=1)
     assert exc.value.code == "E-1001"
-    assert "2013-11-05" in exc.value.message
+    assert "2013-11-04" in exc.value.message
 
 
 def test_ensure_zones_writes_d03_and_reuses_until_k_changes(workspace, monkeypatch):
@@ -90,7 +89,7 @@ def test_ensure_zones_writes_d03_and_reuses_until_k_changes(workspace, monkeypat
     path = zones.ensure_zones(phase)
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["phase"] == "dev" and data["k"] == 1
-    assert data["train_range"] == ["2013-11-04", "2013-11-05"]
+    assert data["train_range"] == ["2013-11-04", "2013-11-04"]
     assert set(data["zones"][0]) == {"rank", "square_id", "train_total"}
 
     calls = []
