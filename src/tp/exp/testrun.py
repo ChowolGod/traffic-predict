@@ -67,11 +67,15 @@ def _validate(final: dict, index: dict, k: int) -> dict[int, dict[str, registry.
                 raise _bad(f"{exp_id}는 full 단계의 post_test=false 실험이어야 함")
             if e.config["zone_rank"] != rank or _family_of(e.config) != family:
                 raise _bad(f"{exp_id}는 구역 {rank}의 {family} 실험이 아님")
+            if e.config["horizon"] != 1:  # v2: horizons enter test only after the F-09 revision
+                raise _bad(
+                    f"{exp_id}는 horizon {e.config['horizon']}. F-09 개정 전에는 horizon 1만"
+                )
             candidates = [
                 c for c in index.values()
                 if c.status == "completed" and c.config["phase"] == "full"
                 and not c.meta["post_test"] and c.config["zone_rank"] == rank
-                and _family_of(c.config) == family
+                and _family_of(c.config) == family and c.config["horizon"] == e.config["horizon"]
                 and c.meta["compare_group"] == e.meta["compare_group"]
             ]  # fmt: skip
             best = min(candidates, key=lambda c: (_val_mae(c), c.id))

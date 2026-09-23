@@ -64,14 +64,48 @@ def fit_arima(train: pd.DataFrame, cfg: dict) -> dict:
     return {**spec, "param_names": list(res.param_names), "params": [float(p) for p in res.params]}
 
 
-def predict_arima(params: dict, df: pd.DataFrame) -> pd.Series:
-    """One-step-ahead predictions over df using fixed params (no refit), indexed like df."""
+def _at(matrix: np.ndarray, t: np.ndarray | int) -> np.ndarray:
+    """Pick time t from a statsmodels system matrix (last axis is 1 when time-invariant)."""
+    return matrix[..., 0] if matrix.shape[-1] == 1 else matrix[..., t]
+
+
+def _h_step(res, horizon: int) -> tuple[np.ndarray, np.ndarray]:
+    """h-step-ahead forecasts from every origin o: Z (T^(h-1) a_{o+1|o} + sum T^k c) + d.
+
+    Returns (endog indices of the targets, forecasts). Exact for the Kalman filter used by
+    statsmodels; checked against filter-then-forecast per origin in tests."""
+    fr = res.filter_results
+    transition, intercept = _at(fr.transition, 0), _at(fr.state_intercept, 0)
+    if fr.transition.shape[-1] != 1 or fr.state_intercept.shape[-1] != 1:
+        raise NotImplementedError("time-varying state equation is not supported")
+    n = fr.nobs
+    states = fr.predicted_state[:, 1 : n - horizon + 2]  # a_{o+1|o} for o = 0 .. n - horizon
+    for _ in range(horizon - 1):
+        states = transition @ states + intercept[:, None]
+    targets = np.arange(horizon, n + 1)[: states.shape[1]]
+    targets = targets[targets < n]
+    states = states[:, : len(targets)]
+    design = fr.design
+    if design.shape[-1] == 1:
+        forecast = design[0, :, 0] @ states
+    else:
+        forecast = np.einsum("kt,kt->t", design[0][:, targets], states)
+    return targets, forecast + np.atleast_2d(_at(fr.obs_intercept, targets))[0]
+
+
+def predict_arima(params: dict, df: pd.DataFrame, horizon: int = 1) -> pd.Series:
+    """Rolling predictions of y[t] from origin t - horizon with fixed params (no refit)."""
     endog, exog, start = _design(df, params)
     model = ARIMA(endog, exog=exog, order=tuple(params["order"]))
-    z_hat = model.filter(np.asarray(params["params"])).predict()
+    res = model.filter(np.asarray(params["params"]))
     y = df["y"].to_numpy(dtype=float)
-    y_hat = z_hat + y[:-SEASON] if start else z_hat
-    return pd.Series(np.asarray(y_hat), index=df.index[start:])
+    if horizon == 1:
+        z_hat = np.asarray(res.predict())
+        y_hat = z_hat + y[:-SEASON] if start else z_hat
+        return pd.Series(y_hat, index=df.index[start:])
+    targets, z_hat = _h_step(res, horizon)
+    y_hat = z_hat + y[targets] if start else z_hat  # diff144: y[t - 144] is known at t - h
+    return pd.Series(y_hat, index=df.index[start + targets])
 
 
 def save_params(path: Path, params: dict) -> None:

@@ -34,7 +34,7 @@ NAME_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 META_KEYS = ("id", "name", "phase", "parent", "changed", "reason", "hypothesis")
 NOT_COMPARED = {"id", "name", "parent", "changed", "reason", "hypothesis", "runtime.time_limit_min"}
 FAMILIES = ("naive", "arima", "lstm")
-DEFAULTS = {"zone_rank": 1, "runtime.time_limit_min": 30, "runtime.threads": 4}
+DEFAULTS = {"zone_rank": 1, "horizon": 1, "runtime.time_limit_min": 30, "runtime.threads": 4}
 INITIAL = {  # plan 4.2 모델 초기 설정
     "naive": {"naive.lag": 144},
     "arima": {"arima.order": [2, 1, 2], "arima.seasonal": "none"},
@@ -83,8 +83,9 @@ def _order(v: object) -> bool:
 
 SCHEMA: dict[str, Callable[[object], bool]] = {  # D-05
     "zone_rank": _int(1, 3),
+    "horizon": _int(1, 6, allowed=(1, 3, 6)),
     "model.type": _choice(*FAMILIES),
-    "naive.lag": _int(1, 144, allowed=(1, 144)),
+    "naive.lag": _int(1, 1008, allowed=(1, 144, 1008)),
     "arima.order": _order,
     "arima.seasonal": _choice("none", "diff144", "fourier"),
     "arima.fourier_k": _int(1, 10),
@@ -167,6 +168,7 @@ def resolve_config(raw: dict) -> dict:
     keys = applicable_keys(model_type, seasonal)
     resolved = {k: flat[k] for k in META_KEYS}
     resolved["zone_rank"] = flat.get("zone_rank", DEFAULTS["zone_rank"])
+    resolved["horizon"] = flat.get("horizon", DEFAULTS["horizon"])
     resolved["model.type"] = model_type
     for key in keys:
         if key in flat:
@@ -241,6 +243,7 @@ def scan() -> dict[str, Experiment]:
         try:
             meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
             cfg = flatten(yaml.safe_load((folder / "config.yaml").read_text(encoding="utf-8")))
+            cfg.setdefault("horizon", DEFAULTS["horizon"])  # v1 experiments were all 1-step
         except (OSError, ValueError, yaml.YAMLError, AttributeError):
             meta, cfg = None, None
         found[folder.name[:7]] = Experiment(folder.name[:7], folder, meta, cfg)
@@ -285,10 +288,13 @@ def check_rules(
         if cfg["changed"] is not None:
             raise _rule("루트 실험의 changed는 null")
         root_ok = (
-            cfg["model.type"] == "naive" and cfg.get("naive.lag") == 144 and cfg["zone_rank"] == 1
+            cfg["model.type"] == "naive"
+            and cfg.get("naive.lag") == 144
+            and cfg["zone_rank"] == 1
+            and cfg["horizon"] == 1
         )
         if not root_ok:
-            raise _rule("루트 실험은 naive, lag 144, zone_rank 1")
+            raise _rule("루트 실험은 naive, lag 144, zone_rank 1, horizon 1")
         others = [
             e.id
             for e in index.values()
@@ -350,9 +356,9 @@ def _pred_frame(rows: pd.DataFrame, y_pred, seed: int) -> pd.DataFrame:
 
 
 def _run_naive(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.DataFrame:
-    lag = cfg["naive.lag"]
-    rows = data.iloc[lag:]
-    y_pred = naive.predict_naive(data, lag, pd.DatetimeIndex(rows["time_utc"]))
+    lag, horizon = cfg["naive.lag"], cfg["horizon"]
+    rows = data.iloc[max(lag, horizon) :]
+    y_pred = naive.predict_naive(data, lag, pd.DatetimeIndex(rows["time_utc"]), horizon)
     return _pred_frame(rows, y_pred.to_numpy(), seed=-1)
 
 
@@ -360,12 +366,12 @@ def _run_arima(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.Da
     params = arima.fit_arima(data[data["segment"] == "train"], cfg)
     check_time()
     arima.save_params(folder / "model" / "arima_params.json", params)
-    y_pred = arima.predict_arima(params, data)
+    y_pred = arima.predict_arima(params, data, horizon=cfg["horizon"])
     return _pred_frame(data.loc[y_pred.index], y_pred.to_numpy(), seed=-1)
 
 
 def _run_lstm(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.DataFrame:
-    targets = data.index[cfg["lstm.window"] :]
+    targets = data.index[cfg["lstm.window"] + cfg["horizon"] - 1 :]
     frames = []
     for seed in config.LSTM_SEEDS:
         set_seed(seed, cfg["runtime.threads"])
@@ -491,7 +497,7 @@ def check_data(cfg: dict, phase: PhaseConfig) -> None:
     """Data-dependent checks that must pass before any folder is created (E-2003, E-4001)."""
     series = series_mod.load_series(phase, zone_square(phase, cfg["zone_rank"]))
     if cfg["model.type"] == "lstm":
-        n = lstm.count_train_samples(cut_until(series, "val"), cfg["lstm.window"])
+        n = lstm.count_train_samples(cut_until(series, "val"), cfg["lstm.window"], cfg["horizon"])
         if n < cfg["lstm.batch"]:
             raise _rule(f"LSTM 학습 샘플 수 {n} < lstm.batch {cfg['lstm.batch']}")
 

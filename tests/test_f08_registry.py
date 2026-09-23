@@ -390,11 +390,11 @@ def test_sweep_continues_after_run_failure(prepared, monkeypatch):
     original = naive.predict_naive
     calls = []
 
-    def flaky(s, lag, targets):
+    def flaky(s, lag, targets, horizon=1):
         calls.append(lag)
         if len(calls) == 1:
             raise TPError("E-3003", "시간 초과: test")
-        return original(s, lag, targets)
+        return original(s, lag, targets, horizon)
 
     monkeypatch.setattr(naive, "predict_naive", flaky)
     registry.sweep("EXP-001", "runtime.threads", "[2, 3]", "EXP-002", "threads", "r", "h")

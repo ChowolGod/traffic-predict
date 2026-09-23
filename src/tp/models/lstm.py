@@ -41,25 +41,33 @@ class TrainedLSTM:
     net: LSTMNet
     scaler: Scaler
     window: int
+    horizon: int = 1
     history: pd.DataFrame | None = None
     best_epoch: int | None = None
 
 
+def _offset(window: int, horizon: int) -> int:
+    """Position of the first target: its input window ends horizon steps earlier."""
+    return window + horizon - 1
+
+
 def _windows(model: TrainedLSTM, series: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Inputs for every target position >= window: (n - window, window) and targets (scaled)."""
+    """Inputs ending at t - horizon for every target position t >= window + horizon - 1."""
     z = model.scaler.transform(series["y"].to_numpy(dtype=float)).astype(np.float32)
-    x = np.lib.stride_tricks.sliding_window_view(z, model.window)[:-1]
-    return x, z[model.window :]
+    offset = _offset(model.window, model.horizon)
+    x = np.lib.stride_tricks.sliding_window_view(z, model.window)[: len(z) - offset]
+    return x, z[offset:]
 
 
-def _mask(series: pd.DataFrame, window: int, segment: str) -> np.ndarray:
-    seg = series["segment"].astype(str).to_numpy()[window:]
-    imputed = series["is_imputed"].to_numpy(dtype=bool)[window:]
+def _mask(series: pd.DataFrame, window: int, segment: str, horizon: int = 1) -> np.ndarray:
+    offset = _offset(window, horizon)
+    seg = series["segment"].astype(str).to_numpy()[offset:]
+    imputed = series["is_imputed"].to_numpy(dtype=bool)[offset:]
     return (seg == segment) & ~imputed
 
 
-def count_train_samples(series: pd.DataFrame, window: int) -> int:
-    return int(_mask(series, window, "train").sum())
+def count_train_samples(series: pd.DataFrame, window: int, horizon: int = 1) -> int:
+    return int(_mask(series, window, "train", horizon).sum())
 
 
 def _mse(model: TrainedLSTM, x: np.ndarray, y: np.ndarray) -> float:
@@ -75,7 +83,7 @@ def _mse(model: TrainedLSTM, x: np.ndarray, y: np.ndarray) -> float:
 
 def val_loss(model: TrainedLSTM, series: pd.DataFrame) -> float:
     x, y = _windows(model, series)
-    sel = _mask(series, model.window, "val")
+    sel = _mask(series, model.window, "val", model.horizon)
     return _mse(model, x[sel], y[sel])
 
 
@@ -89,9 +97,10 @@ def train_lstm(
         net=LSTMNet(cfg["lstm.hidden"], cfg["lstm.layers"], cfg["lstm.dropout"]),
         scaler=Scaler(cfg["lstm.scaler"]).fit(train_y),
         window=window,
+        horizon=cfg.get("horizon", 1),
     )
     x, y = _windows(model, series)
-    sel = _mask(series, window, "train")
+    sel = _mask(series, window, "train", model.horizon)
     x_train = torch.from_numpy(np.ascontiguousarray(x[sel])).unsqueeze(-1)
     y_train = torch.from_numpy(y[sel])
     generator = torch.Generator().manual_seed(seed)
@@ -128,9 +137,9 @@ def train_lstm(
 
 
 def predict_lstm(model: TrainedLSTM, series: pd.DataFrame, targets: pd.Index) -> pd.Series:
-    """Original-scale 1-step predictions for target row labels (each needs `window` history)."""
+    """Original-scale predictions for target row labels (each needs window + horizon - 1 rows)."""
     x, _ = _windows(model, series)
-    positions = series.index.get_indexer(targets) - model.window
+    positions = series.index.get_indexer(targets) - _offset(model.window, model.horizon)
     if (positions < 0).any():
         raise TPError("E-4004", f"평가 시각 불일치: {(positions < 0).sum()} (window 기록 부족)")
     out = []
@@ -152,7 +161,9 @@ def load_model(folder: Path, seed: int, cfg: dict) -> TrainedLSTM:
     net = LSTMNet(cfg["lstm.hidden"], cfg["lstm.layers"], cfg["lstm.dropout"])
     net.load_state_dict(torch.load(folder / f"lstm_seed{seed}.pt", weights_only=True))
     scaler = Scaler.from_dict(json.loads((folder / "scaler.json").read_text(encoding="utf-8")))
-    return TrainedLSTM(net=net, scaler=scaler, window=cfg["lstm.window"])
+    return TrainedLSTM(
+        net=net, scaler=scaler, window=cfg["lstm.window"], horizon=cfg.get("horizon", 1)
+    )
 
 
 def save_curve(history: pd.DataFrame, best_epoch: int, folder: Path, seed: int) -> None:
