@@ -4,7 +4,7 @@
 프로필: 데이터·ML 실험
 
 ## 다음 세션에게
-- 현재 단계: 구현 중. 1(골격) 완료, 2(F-01) 실제 데이터 확인만 남음, 3(F-02)·4(F-03)·5(F-04) 완료, 다음은 6(F-08+F-05)
+- 현재 단계: 구현 중. 1(골격) 완료, 2(F-01) 실제 데이터 확인만 남음, 3(F-02)·4(F-03)·5(F-04) 완료, 6(F-08+F-05) 코드 완료·실데이터 실행 남음, 다음은 7(F-06)
 - 확정된 결정:
   - 프로필: 데이터·ML 실험 / 개인 프로젝트, 1인, 직접 구현
   - 결과 소비자: GitHub 포트폴리오(README). 정해진 마감 없음
@@ -402,7 +402,7 @@ uv run ruff format --check src tests
 | 3 | F-02 | M-03 / I-01 구역 부분 / 테스트(train만 사용, 동률) | 완료 | pytest 54 통과. 인접 날짜 파일에 섞인 train 행도 현지 날짜 기준으로 집계 |
 | 4 | F-03 | M-04, M-05 / I-01 완성 / 테스트(앞값 채우기, E-2002, 경계, 144칸, `cut_until`) | 완료 | pytest 69 통과. `load_series`(E-2003)도 여기서 구현. 테스트용 dev 단계는 train 11-04 / val 11-05(11-06의 4칸 결측은 E-2002 테스트에서 따로 사용) |
 | 5 | F-04 | M-10 / 테스트(손계산 예제 1e-9, 채운 시각 제외, E-4004, rel_mae) | 완료 | pytest 78 통과 |
-| 6 | F-08 + F-05 | M-11(규칙·락·메타·sweep), M-12, M-07 / I-02, I-03, I-04 / 테스트(루트·한 요소·계열 전환·ID·retry·dirty) → dev EXP-001(lag-144), EXP-002(lag-1) | 대기 | 기준선 결과 = 이후 모든 dev 실험의 비교 기준 |
+| 6 | F-08 + F-05 | M-11(규칙·락·메타·sweep), M-12, M-07 / I-02, I-03, I-04 / 테스트(루트·한 요소·계열 전환·ID·retry·dirty) → dev EXP-001(lag-144), EXP-002(lag-1) | 진행 중 | 코드·테스트 완료(pytest 117 통과). **남은 것: 실제 dev 데이터로 EXP-001(lag-144)·EXP-002(lag-1) 실행**. 구현 세부: dirty 판정은 코드 경로(`src`, `pyproject.toml`, `uv.lock`, `configs/phases.yaml`)만 봄 / `meta.json`에 `square_id·agg_version·impute_version·compare_group` 추가(실행 당시 버전으로 compare_group 계산) / `results/figures/*.png`는 F-10에서 구현 |
 | 7 | F-06 | M-08(none·diff144·fourier, 수렴 판정, D-11) / 테스트(재현 1e-9, apply가 재적합 안 함) → dev ARIMA 첫 실험 | 대기 | 위험: full 기간 30분 이내인지 일찍 측정 |
 | 8 | F-07 | M-06, M-09(D-11, 곡선, 샘플 수 검사) / 테스트(같은 시드 1e-6, 스케일러는 train만) → dev LSTM 첫 실험 | 대기 | 위험: Windows CPU 결정성 |
 | 9 | F-09 | M-17, M-14 / I-05 / 테스트(픽스처로만: LOCK·원자성·confirm·dirty·선택 규칙·부트스트랩 재현) | 대기 | 실제 test는 순서 11에서 |

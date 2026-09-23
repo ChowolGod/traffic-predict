@@ -9,6 +9,17 @@ from tp import config
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def isolate_outputs(tmp_path, monkeypatch):
+    """No test may write into the real repo's data/experiments/results/configs dirs."""
+    guard = tmp_path / "_guard"
+    monkeypatch.setattr(config, "INTERIM_DIR", guard / "interim")
+    monkeypatch.setattr(config, "PROCESSED_DIR", guard / "processed")
+    monkeypatch.setattr(config, "EXPERIMENTS_DIR", guard / "experiments")
+    monkeypatch.setattr(config, "RESULTS_DIR", guard / "results")
+    monkeypatch.setenv("TP_RAW_DIR", str(guard / "raw"))
+
+
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
     """Isolated raw/interim/processed/configs dirs with the fixture raw files copied in."""
@@ -24,4 +35,9 @@ def workspace(tmp_path, monkeypatch):
     }
     (configs / "phases.yaml").write_text(yaml.safe_dump(phases), encoding="utf-8")
     monkeypatch.setattr(config, "CONFIGS_DIR", configs)
+    monkeypatch.setattr(config, "EXPERIMENTS_DIR", tmp_path / "experiments")
+    monkeypatch.setattr(config, "RESULTS_DIR", tmp_path / "results")
+    from tp.exp import registry
+
+    monkeypatch.setattr(registry, "git_state", lambda: ("abc1234", False))
     return tmp_path

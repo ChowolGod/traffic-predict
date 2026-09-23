@@ -11,6 +11,7 @@ from tp import config
 from tp.config import PHASES
 from tp.data import cache, zones
 from tp.errors import TPError
+from tp.exp import registry, results
 from tp.prep import series
 
 log = logging.getLogger("tp")
@@ -27,8 +28,26 @@ def cmd_prepare(args: argparse.Namespace) -> None:
         series.ensure_series(phase, zone["square_id"])
 
 
+def cmd_run(args: argparse.Namespace) -> None:
+    registry.run_from_file(args.config, retry=args.retry)
+
+
+def cmd_sweep(args: argparse.Namespace) -> None:
+    registry.sweep(args.parent, args.key, args.values, args.start_id, args.name,
+                   args.reason, args.hypothesis)  # fmt: skip
+
+
+def cmd_results(args: argparse.Namespace) -> None:
+    results.rebuild_results()
+
+
 # Filled in as each command is implemented (I-01..I-05).
-HANDLERS: dict[str, Callable[[argparse.Namespace], None]] = {"prepare": cmd_prepare}
+HANDLERS: dict[str, Callable[[argparse.Namespace], None]] = {
+    "prepare": cmd_prepare,
+    "run": cmd_run,
+    "sweep": cmd_sweep,
+    "results": cmd_results,
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
