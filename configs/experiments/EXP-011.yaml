@@ -1,0 +1,19 @@
+id: EXP-011
+name: lstm-epochs100
+phase: dev
+parent: EXP-010
+changed: lstm.max_epochs
+reason: EXP-010은 세 시드 모두 best epoch가 47~50/50으로 제한 직전까지 val 손실이 조금씩 줄고 있었다. 학습이 덜 끝났는지 확인하려고 최대 에폭만 50에서 100으로 늘린다
+hypothesis: 곡선이 20에폭 이후 거의 평평했으므로 더 학습해도 val MAE는 조금만 좋아진다(EXP-010 107.44에서 수 % 이내). 주말 약점(토 99.7, 일 108.3)은 데이터 부족 때문이라 에폭을 늘려도 거의 그대로다
+model:
+  type: lstm
+lstm:
+  window: 144
+  hidden: 64
+  layers: 1
+  dropout: 0.0
+  lr: 0.001
+  batch: 256
+  max_epochs: 100
+  patience: 5
+  scaler: standard

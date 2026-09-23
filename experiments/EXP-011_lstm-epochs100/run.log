@@ -1,0 +1,5 @@
+2026-09-23 18:14:07,203 INFO tp.exp.registry 실험 시작 EXP-011 (구역 5259, lstm)
+2026-09-23 18:14:30,026 INFO tp.exp.registry seed 0: best epoch 65 / 70
+2026-09-23 18:14:52,916 INFO tp.exp.registry seed 1: best epoch 71 / 76
+2026-09-23 18:15:09,832 INFO tp.exp.registry seed 2: best epoch 52 / 57
+2026-09-23 18:15:09,848 INFO tp.exp.registry 실험 완료 EXP-011: val MAE 103.0124
