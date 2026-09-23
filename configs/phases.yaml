@@ -1,0 +1,10 @@
+# D-06a. Dates are Europe/Rome calendar days, both ends inclusive.
+dev:
+  train: [2013-11-04, 2013-11-13]
+  val: [2013-11-14, 2013-11-17]
+  k: 1
+full:
+  train: [2013-11-01, 2013-12-08]
+  val: [2013-12-09, 2013-12-15]
+  test: [2013-12-16, 2013-12-22]
+  k: 1

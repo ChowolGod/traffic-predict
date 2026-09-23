@@ -4,7 +4,7 @@
 프로필: 데이터·ML 실험
 
 ## 다음 세션에게
-- 현재 단계: 동결 완료(2026-09-23, v1) → 구현 대기. 다음은 `/build-project`로 구현 진행표 1번부터
+- 현재 단계: 구현 중. 진행표 1(골격) 완료, 다음은 2(F-01)
 - 확정된 결정:
   - 프로필: 데이터·ML 실험 / 개인 프로젝트, 1인, 직접 구현
   - 결과 소비자: GitHub 포트폴리오(README). 정해진 마감 없음
@@ -24,6 +24,7 @@
 - 남은 일: 구현 진행표 순서대로 구현. 사용자가 디스크 공간을 마련하는 중(원본 약 17GB, 여유 8GB). dev 단계에 필요한 11/03~11/18 원본(약 5GB)은 지금 공간에도 들어감
 - 제약: 마감 없음 · 채점 기준 없음 · 제출물 = GitHub 저장소 README · 구현함
 - 최근 변경: 없음 (v1)
+- 구현 환경(2026-09-23 확인): 커밋은 기능 완료마다 자동(`feat(F-xx): …`, push 안 함). 원본은 기본 경로 `data/raw`(사용자가 받는 중). CPU만 사용. 디스크 여유 52GB
 
 ## 1. 개요
 - **문제:** 셀 단위 모바일 인터넷 트래픽의 단기(10분 뒤) 수요 예측
@@ -396,7 +397,7 @@ uv run ruff format --check src tests
 ## 구현 진행표
 | 순서 | 기능 ID | 범위 | 상태 | 비고 |
 |---|---|---|---|---|
-| 1 | 골격 | `pyproject.toml`·`uv.lock`(Python 3.12), M-15(config·errors·`load_phase`), M-13(seed), M-16(CLI 뼈대, 스레드 환경 변수), `tests/fixtures/make_fixtures.py`·`golden.json`, `.gitignore`, ruff·pytest 동작 | 대기 | E-2001 테스트 포함 |
+| 1 | 골격 | `pyproject.toml`·`uv.lock`(Python 3.12), M-15(config·errors·`load_phase`), M-13(seed), M-16(CLI 뼈대, 스레드 환경 변수), `tests/fixtures/make_fixtures.py`·`golden.json`, `.gitignore`, ruff·pytest 동작 | 완료 | E-2001 테스트 포함. pytest 25 통과, ruff 통과 (2026-09-23) |
 | 2 | F-01 | M-01, M-02, 진단 보고 / I-01의 캐시 부분 / 테스트(픽스처 합산값, `.gz`, E-1001~1003) → **dev 원본(11/03~11/18)으로 전제 A1~A4 확인** | 대기 | 위험 큼(실제 데이터 형식). 전제가 틀리면 변경 통제 |
 | 3 | F-02 | M-03 / I-01 구역 부분 / 테스트(train만 사용, 동률) | 대기 | |
 | 4 | F-03 | M-04, M-05 / I-01 완성 / 테스트(앞값 채우기, E-2002, 경계, 144칸, `cut_until`) | 대기 | |
