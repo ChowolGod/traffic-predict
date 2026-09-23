@@ -480,7 +480,7 @@ def _execute(cfg: dict, index: dict[str, Experiment], phase: PhaseConfig, retry:
         _write_json(folder / "meta.json", meta)
         logging.getLogger("tp").removeHandler(handler)
         handler.close()
-        results.rebuild_results()
+        results.rebuild_results(strict=False)
     return folder
 
 

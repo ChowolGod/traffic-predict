@@ -1,0 +1,5 @@
+# D-14. Congestion threshold per zone = threshold_ratio x train quantile(peak_quantile).
+threshold_ratio: 0.7
+peak_quantile: 0.99
+merge_gap: 1 # congestion runs split by <= this many slots count as one episode
+report_horizon: 6 # horizon (steps) whose decision metrics are reported in results/horizon.md

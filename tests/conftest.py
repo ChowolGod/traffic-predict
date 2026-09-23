@@ -34,6 +34,7 @@ def workspace(tmp_path, monkeypatch):
         "dev": {"train": ["2013-11-04", "2013-11-04"], "val": ["2013-11-05", "2013-11-05"], "k": 1}
     }
     (configs / "phases.yaml").write_text(yaml.safe_dump(phases), encoding="utf-8")
+    shutil.copy(config.ROOT / "configs" / "decision.yaml", configs / "decision.yaml")
     monkeypatch.setattr(config, "CONFIGS_DIR", configs)
     monkeypatch.setattr(config, "EXPERIMENTS_DIR", tmp_path / "experiments")
     monkeypatch.setattr(config, "RESULTS_DIR", tmp_path / "results")

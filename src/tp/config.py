@@ -57,6 +57,33 @@ class PhaseConfig:
         return out
 
 
+@dataclass(frozen=True)
+class DecisionConfig:  # D-14
+    threshold_ratio: float
+    peak_quantile: float
+    merge_gap: int
+    report_horizon: int
+
+
+def load_decision(path: Path | None = None) -> DecisionConfig:
+    path = path or CONFIGS_DIR / "decision.yaml"
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else None
+    if not isinstance(raw, dict):
+        raise TPError("E-2001", f"결정 설정 오류: {path.name}이 없거나 비어 있음")
+    checks = {
+        "threshold_ratio": lambda v: isinstance(v, int | float) and 0 < v <= 1,
+        "peak_quantile": lambda v: isinstance(v, int | float) and 0.5 <= v <= 1,
+        "merge_gap": lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 6,
+        "report_horizon": lambda v: v in (1, 3, 6) and not isinstance(v, bool),
+    }
+    for key, ok in checks.items():
+        if key not in raw:
+            raise TPError("E-2001", f"결정 설정 오류: {key}가 없음")
+        if not ok(raw[key]):
+            raise TPError("E-2001", f"결정 설정 오류: {key} 값 {raw[key]!r}")
+    return DecisionConfig(**{key: raw[key] for key in checks})
+
+
 def _bad(message: str) -> TPError:
     return TPError("E-2001", f"분할 설정 오류: {message}")
 
