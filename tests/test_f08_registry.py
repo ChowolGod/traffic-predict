@@ -360,6 +360,34 @@ def test_results_marks_unreadable_folder_corrupt_and_keeps_the_rest(prepared, fi
     assert table.loc["EXP-001", "status"] == "completed"
 
 
+@pytest.mark.parametrize(
+    ("filename", "content"),
+    [
+        ("meta.json", "{}"),  # no status
+        ("meta.json", "[]"),
+        ("meta.json", '{"status": "completed"}'),  # other required fields missing
+        (
+            "meta.json",
+            '{"status": "weird", "post_test": false, "config_hash": "x", '
+            '"compare_group": "g", "square_id": 1}',
+        ),  # fmt: skip
+        ("config.yaml", "name: x\n"),  # required keys missing
+    ],
+)
+def test_scan_marks_unreadable_folder_corrupt(prepared, filename, content):
+    # A broken folder must not crash later runs; it counts as corrupt (not a usable parent)
+    assert run(ROOT_CFG) == 0
+    shutil.copytree(folder("EXP-001"), config.EXPERIMENTS_DIR / "EXP-002_x")
+    (config.EXPERIMENTS_DIR / "EXP-002_x" / filename).write_text(content, encoding="utf-8")
+    assert registry.scan()["EXP-002"].status == "corrupt"
+    assert run(child(id="EXP-003", changed="naive.lag", naive={"lag": 1})) == 0
+    assert run_err(child(id="EXP-002", changed="naive.lag", naive={"lag": 1}), retry=True) == (
+        "E-4003"
+    )
+    assert run_err(child(id="EXP-004", parent="EXP-002", changed="naive.lag",
+                         naive={"lag": 1})) == "E-4002"  # fmt: skip
+
+
 # --- I-03 sweep --------------------------------------------------------------------------
 def sweep_args(values: str) -> list[str]:
     return [

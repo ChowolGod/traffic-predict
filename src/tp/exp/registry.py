@@ -232,6 +232,22 @@ class Experiment:
         return self.meta["status"] if self.meta else "corrupt"
 
 
+STATUSES = ("running", "completed", "failed")  # D-13
+REQUIRED_META = ("status", "post_test", "config_hash", "compare_group", "square_id")
+REQUIRED_CONFIG = ("phase", "parent", "zone_rank", "model.type")
+
+
+def _readable(meta: object, cfg: object) -> bool:
+    """Fields later code relies on are present; anything else is treated as corrupt."""
+    return (
+        isinstance(meta, dict)
+        and all(key in meta for key in REQUIRED_META)
+        and meta["status"] in STATUSES
+        and isinstance(cfg, dict)
+        and all(key in cfg for key in REQUIRED_CONFIG)
+    )
+
+
 def scan() -> dict[str, Experiment]:
     found: dict[str, Experiment] = {}
     if not config.EXPERIMENTS_DIR.is_dir():
@@ -245,6 +261,9 @@ def scan() -> dict[str, Experiment]:
             cfg = flatten(yaml.safe_load((folder / "config.yaml").read_text(encoding="utf-8")))
             cfg.setdefault("horizon", DEFAULTS["horizon"])  # v1 experiments were all 1-step
         except (OSError, ValueError, yaml.YAMLError, AttributeError):
+            meta, cfg = None, None
+        if (meta or cfg) and not _readable(meta, cfg):
+            log.warning("읽을 수 없는 실험 폴더(corrupt): %s", folder.name)
             meta, cfg = None, None
         found[folder.name[:7]] = Experiment(folder.name[:7], folder, meta, cfg)
     return found
