@@ -1,0 +1,2 @@
+2026-09-23 19:23:38,464 INFO tp.exp.registry 실험 시작 EXP-048 (구역 5161, arima)
+2026-09-23 19:23:39,382 INFO tp.exp.registry 실험 완료 EXP-048: val MAE 257.7830

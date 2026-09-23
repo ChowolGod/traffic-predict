@@ -1,0 +1,18 @@
+id: EXP-045
+name: lag1008-z3-3
+phase: full
+parent: EXP-028
+changed: horizon
+reason: 'v2 예측 거리 확장: 10분 뒤 최선 설정을 그대로 30·60분 뒤에 적용해 거리별로 비교한다(용량 셀을 미리 켜려면 먼 거리 예측이
+  필요)'
+hypothesis: 거리가 늘수록 마지막 관측값의 이점이 줄어 ARIMA·LSTM과의 차이가 커지고, 60분 뒤에서는 지난주·어제 같은 시각과의
+  격차가 좁혀진다
+zone_rank: 3
+horizon: 3
+model:
+  type: naive
+naive:
+  lag: 1008
+runtime:
+  time_limit_min: 30
+  threads: 4

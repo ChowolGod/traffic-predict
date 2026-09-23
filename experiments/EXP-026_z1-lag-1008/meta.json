@@ -1,0 +1,21 @@
+{
+  "id": "EXP-026",
+  "parent": "EXP-013",
+  "changed": "naive.lag",
+  "reason": "v2 기준선 추가: 지난주 같은 시각(lag-1008). 요일을 반영하는 단순 기준선이 필요함(어제 같은 시각은 요일 전환일에 크게 틀림)",
+  "hypothesis": "요일 전환일 오차가 사라져 lag-144보다 낫지만, 10분 뒤에서는 마지막 관측값보다 나쁘다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "104ee05b4580447b1aef3c366589ad868788cf0935b2a35b1c32b947da65a7ff",
+  "git_commit": "ebd6707d6651c359cd057892e887781db402a0e8",
+  "git_dirty": false,
+  "started_at": "2026-09-23T10:21:59+00:00",
+  "ended_at": "2026-09-23T10:22:01+00:00",
+  "duration_s": 1.359,
+  "pid": 25384,
+  "square_id": 5161,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "aeb67261"
+}

@@ -1,0 +1,2 @@
+2026-09-23 19:22:55,383 INFO tp.exp.registry 실험 시작 EXP-037 (구역 5059, naive)
+2026-09-23 19:22:56,766 INFO tp.exp.registry 실험 완료 EXP-037: val MAE 213.4478

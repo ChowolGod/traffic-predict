@@ -40,8 +40,10 @@ def decision_metrics(
     leads = []
     for start, end in spans:
         in_episode[start : end + 1] = True
-        early = np.flatnonzero(alarm[start : min(end, start + horizon) + 1])
-        if len(early):  # earliest target in [s, s + h] → earliest issue time <= s
+        # v2.1: an alarm counts only if issued strictly before s (target τ <= s + h - 1);
+        # at issue time s the congestion at s is already observed.
+        early = np.flatnonzero(alarm[start : min(end, start + horizon - 1) + 1])
+        if len(early):  # earliest such target gives the longest lead, 1..h slots
             leads.append((horizon - early[0]) * SLOT_MIN)
     return {
         "episodes": len(spans),

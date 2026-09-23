@@ -42,6 +42,14 @@ def test_only_alarms_issued_before_start_count():
     assert early["missed"] == 1 and early["lead_min"] == 20.0
 
 
+def test_alarm_issued_at_the_start_is_not_early():
+    # v2.1: episode [1, 4], h=3: τ=4 is issued at 1 = s → congestion already observed → missed
+    at_start = metrics(Y_TRUE, pred_with_alarms([4]), horizon=3)
+    assert at_start["missed"] == 2 and at_start["lead_min"] is None
+    # τ=3 is issued at 0 < 1 → detected with the minimum lead of one slot
+    assert metrics(Y_TRUE, pred_with_alarms([3]), horizon=3)["lead_min"] == 10.0
+
+
 def test_earliest_alarm_gives_the_lead():
     out = metrics(Y_TRUE, pred_with_alarms([7, 8, 9]), horizon=3)  # τ=7 issued at 4
     assert out["lead_min"] == 30.0

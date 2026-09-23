@@ -1,0 +1,17 @@
+id: EXP-027
+name: z2-lag-1008
+phase: full
+parent: EXP-018
+changed: naive.lag
+reason: 'v2 기준선 추가: 지난주 같은 시각(lag-1008). 요일을 반영하는 단순 기준선이 필요함(어제 같은 시각은 요일 전환일에 크게
+  틀림)'
+hypothesis: 요일 전환일 오차가 사라져 lag-144보다 낫지만, 10분 뒤에서는 마지막 관측값보다 나쁘다
+zone_rank: 2
+horizon: 1
+model:
+  type: naive
+naive:
+  lag: 1008
+runtime:
+  time_limit_min: 30
+  threads: 4
