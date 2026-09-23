@@ -1,0 +1,21 @@
+id: EXP-008
+name: arima-order-3-1-3
+phase: dev
+parent: EXP-003
+changed: arima.order
+reason: 계절성 추가(EXP-004~006)는 도움이 안 됐으므로 계절성 없는 EXP-003을 기준으로 차수만 바꿔 ARIMA 계열의 최선을
+  확정한다
+hypothesis: 차수를 줄이거나(1,1,1) 늘려도(3,1,3), (5,1,5) val MAE는 EXP-003(94.16)과 몇 % 이내로 비슷하다.
+  10분 뒤 예측은 직전 몇 개 값이 대부분을 설명하므로 차수를 늘려도 이득이 작다
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 3
+  - 1
+  - 3
+  seasonal: none
+runtime:
+  time_limit_min: 30
+  threads: 4

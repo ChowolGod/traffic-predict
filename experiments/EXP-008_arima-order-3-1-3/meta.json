@@ -1,0 +1,21 @@
+{
+  "id": "EXP-008",
+  "parent": "EXP-003",
+  "changed": "arima.order",
+  "reason": "계절성 추가(EXP-004~006)는 도움이 안 됐으므로 계절성 없는 EXP-003을 기준으로 차수만 바꿔 ARIMA 계열의 최선을 확정한다",
+  "hypothesis": "차수를 줄이거나(1,1,1) 늘려도(3,1,3), (5,1,5) val MAE는 EXP-003(94.16)과 몇 % 이내로 비슷하다. 10분 뒤 예측은 직전 몇 개 값이 대부분을 설명하므로 차수를 늘려도 이득이 작다",
+  "status": "completed",
+  "error_code": null,
+  "post_test": false,
+  "config_hash": "9bdecf17c1eaa869e58697b5d68c44392af1059c3b0b3847dec10eb9d34b8029",
+  "git_commit": "7ec8faa80ec514923465854a4a87bfd99505f755",
+  "git_dirty": false,
+  "started_at": "2026-09-23T09:07:58+00:00",
+  "ended_at": "2026-09-23T09:07:59+00:00",
+  "duration_s": 0.453,
+  "pid": 29664,
+  "square_id": 5259,
+  "agg_version": 1,
+  "impute_version": 1,
+  "compare_group": "e9ffdf9f"
+}

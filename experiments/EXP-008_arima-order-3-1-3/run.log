@@ -1,0 +1,4 @@
+2026-09-23 18:07:58,798 INFO tp.exp.registry 실험 시작 EXP-008 (구역 5259, arima)
+2026-09-23 18:07:59,202 INFO tp.models.arima statsmodels 경고: Non-stationary starting autoregressive parameters found. Using zeros as starting parameters.
+2026-09-23 18:07:59,203 INFO tp.models.arima statsmodels 경고: Non-invertible starting MA parameters found. Using zeros as starting parameters.
+2026-09-23 18:07:59,242 INFO tp.exp.registry 실험 완료 EXP-008: val MAE 95.1271
