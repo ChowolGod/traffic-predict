@@ -4,14 +4,26 @@ import argparse
 import logging
 import sys
 from collections.abc import Callable
+from datetime import timedelta
 
+from tp import config
 from tp.config import PHASES
+from tp.data import cache
 from tp.errors import TPError
 
 log = logging.getLogger("tp")
 
+
+def cmd_prepare(args: argparse.Namespace) -> None:
+    phase = config.load_phase(args.phase)
+    days = [phase.start + timedelta(days=i) for i in range((phase.end - phase.start).days + 1)]
+    neighbors = [phase.start - timedelta(days=1), phase.end + timedelta(days=1)]
+    built = cache.ensure_daily_caches(days, optional=neighbors, force=args.force)
+    cache.write_inspect(built)
+
+
 # Filled in as each command is implemented (I-01..I-05).
-HANDLERS: dict[str, Callable[[argparse.Namespace], None]] = {}
+HANDLERS: dict[str, Callable[[argparse.Namespace], None]] = {"prepare": cmd_prepare}
 
 
 def build_parser() -> argparse.ArgumentParser:
