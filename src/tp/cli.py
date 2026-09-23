@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from tp import config
 from tp.config import PHASES
-from tp.data import cache
+from tp.data import cache, zones
 from tp.errors import TPError
 
 log = logging.getLogger("tp")
@@ -20,6 +20,7 @@ def cmd_prepare(args: argparse.Namespace) -> None:
     neighbors = [phase.start - timedelta(days=1), phase.end + timedelta(days=1)]
     built = cache.ensure_daily_caches(days, optional=neighbors, force=args.force)
     cache.write_inspect(built)
+    zones.ensure_zones(phase)
 
 
 # Filled in as each command is implemented (I-01..I-05).
