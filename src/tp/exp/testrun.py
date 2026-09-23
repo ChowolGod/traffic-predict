@@ -14,15 +14,15 @@ from tp import config
 from tp.errors import TPError
 from tp.eval import metrics
 from tp.eval.bootstrap import block_bootstrap_diff_ci
-from tp.exp import registry
+from tp.exp import registry, selection
 from tp.models import arima, lstm, naive
 from tp.prep import series as series_mod
 
-FAMILIES = {  # final.yaml key -> (model.type, naive.lag)
-    "naive_144": ("naive", 144),
-    "naive_1": ("naive", 1),
-    "arima": ("arima", None),
-    "lstm": ("lstm", None),
+FAMILIES = {  # final.yaml key -> selection family
+    "naive_144": "lag144",
+    "naive_1": "lag1",
+    "arima": "arima",
+    "lstm": "lstm",
 }
 COLUMNS = ["family", "zone_rank", "square_id", "mae", "mae_std", "rmse", "rmse_std", "rel_mae",
            "mae_diff_vs_lag144", "ci_low", "ci_high"]  # fmt: skip
@@ -39,14 +39,25 @@ def _bad(message: str) -> TPError:
 
 
 def _family_of(cfg: dict) -> str | None:
-    for family, (model_type, lag) in FAMILIES.items():
-        if cfg["model.type"] == model_type and (lag is None or cfg.get("naive.lag") == lag):
-            return family
-    return None
+    """final.yaml key of an experiment, or None for families test does not evaluate."""
+    name = selection.family(cfg["model.type"], cfg.get("naive.lag"))
+    return next((key for key, fam in FAMILIES.items() if fam == name), None)
 
 
 def _val_mae(e: registry.Experiment) -> float:
     return json.loads((e.folder / "metrics.json").read_text(encoding="utf-8"))["val"]["mae"]
+
+
+def _best_ids(index: dict) -> dict[selection.Key, str]:
+    records = [
+        {"exp_id": e.id, "phase": e.config["phase"], "status": e.status,
+         "post_test": e.meta["post_test"], "zone_rank": e.config["zone_rank"],
+         "horizon": e.config["horizon"], "compare_group": e.meta["compare_group"],
+         "family": selection.family(e.config["model.type"], e.config.get("naive.lag")),
+         "val_mae": _val_mae(e) if e.status == "completed" else None}
+        for e in index.values() if e.status != "corrupt"
+    ]  # fmt: skip
+    return selection.best_ids(records)
 
 
 def _validate(final: dict, index: dict, k: int) -> dict[int, dict[str, registry.Experiment]]:
@@ -54,6 +65,7 @@ def _validate(final: dict, index: dict, k: int) -> dict[int, dict[str, registry.
     if not isinstance(zones, dict) or sorted(zones) != list(range(1, k + 1)):
         raise _bad(f"zones 키는 1~{k}이어야 함: {sorted(zones or {})}")
     chosen: dict[int, dict[str, registry.Experiment]] = {}
+    best_ids = None  # read metrics only after the cheap checks pass
     for rank, mapping in zones.items():
         if not isinstance(mapping, dict) or set(mapping) != set(FAMILIES):
             raise _bad(f"구역 {rank}의 계열 키는 {list(FAMILIES)}이어야 함")
@@ -71,16 +83,12 @@ def _validate(final: dict, index: dict, k: int) -> dict[int, dict[str, registry.
                 raise _bad(
                     f"{exp_id}는 horizon {e.config['horizon']}. F-09 개정 전에는 horizon 1만"
                 )
-            candidates = [
-                c for c in index.values()
-                if c.status == "completed" and c.config["phase"] == "full"
-                and not c.meta["post_test"] and c.config["zone_rank"] == rank
-                and _family_of(c.config) == family and c.config["horizon"] == e.config["horizon"]
-                and c.meta["compare_group"] == e.meta["compare_group"]
-            ]  # fmt: skip
-            best = min(candidates, key=lambda c: (_val_mae(c), c.id))
-            if best.id != exp_id:
-                raise _bad(f"{family} 선택 규칙과 다름: {exp_id} 대신 {best.id}(val MAE 최소)")
+            best_ids = best_ids if best_ids is not None else _best_ids(index)
+            key = (rank, e.config["horizon"], FAMILIES[family], e.meta["compare_group"])
+            if best_ids[key] != exp_id:
+                raise _bad(
+                    f"{family} 선택 규칙과 다름: {exp_id} 대신 {best_ids[key]}(val MAE 최소)"
+                )
             chosen[rank][family] = e
         groups = {e.meta["compare_group"] for e in chosen[rank].values()}
         if len(groups) != 1:

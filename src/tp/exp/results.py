@@ -15,6 +15,7 @@ import yaml  # noqa: E402
 from tp import config  # noqa: E402
 from tp.errors import TPError  # noqa: E402
 from tp.eval import decision  # noqa: E402
+from tp.exp import selection  # noqa: E402
 from tp.prep import series as series_mod  # noqa: E402
 
 log = logging.getLogger(__name__)
@@ -47,11 +48,6 @@ FAMILIES = [
 ]  # fmt: skip
 HORIZONS = (1, 3, 6)
 SURFACE, INK, INK_2, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e8e7e3"
-
-
-def family_of(model_type: str, lag: float | None) -> str:
-    """lag may arrive as float from a DataFrame column mixed with NaN (non-naive rows)."""
-    return f"lag{int(lag)}" if model_type == "naive" else model_type
 
 
 def _mean_std(values: list) -> tuple[float | None, float | None]:
@@ -157,12 +153,20 @@ def _cell(value) -> str:
 
 
 def _best(rows: pd.DataFrame) -> pd.DataFrame:
-    """Selection rule per (zone, horizon, family): min val MAE, ties by smaller ID (3.3)."""
-    full = rows[(rows["phase"] == "full") & (rows["status"] == "completed") & ~rows["post_test"]]
+    """Best experiment per (zone, horizon, family) by the shared selection rule (3.3), within
+    each zone's reference compare_group: that of its first completed full experiment (E-4004).
+    """
+    full = rows[(rows["phase"] == "full") & (rows["status"] == "completed")]
     pairs = zip(full["model_type"], full["_lag"], strict=True)
-    full = full.assign(family=[family_of(t, lag) for t, lag in pairs])
-    full = full.sort_values(["val_mae", "exp_id"])
-    return full.groupby(["zone_rank", "horizon", "family"], as_index=False).first()
+    full = full.assign(family=[selection.family(t, lag) for t, lag in pairs])
+    reference = full.sort_values("exp_id").groupby("zone_rank")["compare_group"].first()
+    chosen = set(selection.best_ids(full.to_dict("records")).values())
+    best = full[full["exp_id"].isin(chosen)]
+    others = best["compare_group"] != best["zone_rank"].map(reference)
+    if others.any():
+        log.warning("거리별 표에서 기준 compare_group이 아닌 실험 제외: %s",
+                    list(best.loc[others, "exp_id"]))  # fmt: skip
+    return best[~others].sort_values(["zone_rank", "horizon", "family"]).reset_index(drop=True)
 
 
 def _num(value, std) -> str:
