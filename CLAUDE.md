@@ -1,8 +1,8 @@
 # traffic-predict
 
-밀라노 모바일 트래픽 예측 실험입니다. 인터넷 트래픽 총량 상위 3개 격자 칸(약 235m, 지역)에서 10·30·60분 뒤 값을 예측하고, 기준선(10분 전 값·어제 같은 시각·지난주 같은 시각), ARIMA, LSTM을 예측 오차와 결정 수준 지표로 비교합니다.
+밀라노 모바일 트래픽 예측 실험입니다. 인터넷 트래픽 총량 상위 3개 격자 칸(약 235m, 지역)에서 10·30·60분 뒤 값을 예측하고, 기준선(마지막 관측값·어제 같은 시각·지난주 같은 시각), ARIMA, LSTM을 예측 오차와 결정 수준 지표로 비교합니다.
 
-- 기획서(단일 원천): `docs/traffic-predict_기획서.md` (동결 v2.2). 기획서와 다르게 바꿔야 하면 코드를 고치기 전에 변경 통제 표로 영향을 보고합니다.
+- 기획서(단일 원천): `docs/traffic-predict_기획서.md` (동결 v2.4). 기획서와 다르게 바꿔야 하면 코드를 고치기 전에 변경 통제 표로 영향을 보고합니다.
 - 프로필: 데이터·ML 실험
 - 스택: Python 3.12(uv), pandas, numpy, pyarrow, statsmodels, torch(CPU), matplotlib, pyyaml, filelock, pytest, ruff
 
@@ -14,7 +14,7 @@
 - 가정: 구역마다 항상 켜진 커버리지 셀 + 켜고 끌 수 있는 용량 셀.
   예측 트래픽이 임계치를 넘을 것 같으면 용량 셀을 미리 켠다.
 - 과소예측(혼잡 놓침)이 과대예측(괜히 켬)보다 비용이 크다.
-- 켜고 끄기가 잦지 않도록 최소 유지 시간 규칙을 둔다.
+- 켜고 끄기가 잦지 않도록 최소 유지 시간 규칙을 둔다(값은 4단계에서 후보를 제시해 사용자가 정함).
 - 셀 용량은 절대 단위를 모르므로 구역별 train 피크 대비 비율로 정의한다.
 - 향후(현재 범위 아님): 한산한 지역 1~2곳 추가 → "절전" 시나리오 비교.
 
@@ -24,7 +24,7 @@
 
 ### 진행 순서
 1) 목적 확정 — 완료
-2) 예측 거리 비교 (10/30/60분, 베이스라인: 10분 전 값·어제 같은 시각·지난주 같은 시각)
+2) 예측 거리 비교 (10/30/60분, 베이스라인: 마지막 관측값(10분 뒤 예측에서는 10분 전 값)·어제 같은 시각·지난주 같은 시각)
 3) 결정 수준 평가 (놓친 혼잡, 불필요 경보 시간, 리드타임)
 4) 규칙 기반 켜기/끄기 시뮬레이션
 5) 모든 설정 동결 후 test 1회 실행
@@ -37,13 +37,15 @@
 ## 명령
 ```bash
 uv sync
-uv run python -m tp prepare --phase dev
+uv run python -m tp prepare --phase dev          # full은 --phase full
 uv run python -m tp run --config configs/experiments/EXP-001.yaml
+uv run python -m tp sweep --parent EXP-### --key <키> --values '<JSON>' --start-id EXP-### --name <접두어> --reason <문장> --hypothesis <문장>
 uv run python -m tp results
 uv run pytest -q
 uv run ruff check src tests
 uv run ruff format --check src tests
 ```
+`test --final configs/final.yaml --confirm`은 사용자가 "설정 동결, test 실행"이라고 지시한 뒤 한 번만 실행합니다.
 원본 경로는 환경 변수 `TP_RAW_DIR`로 정합니다. 없으면 `data/raw`를 씁니다. `.txt`와 `.txt.gz`를 모두 읽습니다.
 
 ## 핵심 원칙
@@ -61,11 +63,15 @@ uv run ruff format --check src tests
 
 ## 코드 스타일 예시
 ```python
-def predict_naive(series: pd.DataFrame, lag: int, targets: pd.DatetimeIndex) -> pd.Series:
-    """y[t - lag]를 그대로 예측값으로 쓴다. series는 10분 정규 인덱스(D-04)."""
-    shifted = series["y"].shift(lag)
+def predict_naive(
+    series: pd.DataFrame, lag: int, targets: pd.DatetimeIndex, horizon: int = 1
+) -> pd.Series:
+    """series is a D-04 frame on a regular 10-minute grid. With lag < horizon the forecast is
+    the last value observed at the origin t - horizon (lag 1 = persistence)."""
+    effective = max(lag, horizon)
+    shifted = series.set_index("time_utc")["y"].shift(effective)
     missing = targets.difference(shifted.dropna().index)
     if len(missing):
-        raise TPError("E-4004", f"평가 시각 불일치: {len(missing)}")
+        raise TPError("E-4004", f"평가 시각 불일치: {len(missing)} (lag {effective} 기록 부족)")
     return shifted.loc[targets]
 ```
