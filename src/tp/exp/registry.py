@@ -211,6 +211,9 @@ def check_one_change(parent: dict, child: dict) -> None:
         if off:
             raise _rule(f"계열 전환 시 {new} 설정은 초기값이어야 함: {off}")
         return
+    # Resolved configs hold only active keys, so a key on one side only is inactive on the
+    # other (e.g. arima.fourier_k when seasonal changes) and is not compared (plan 3.3).
+    diff = [k for k in diff if k in parent and k in child]
     if diff != [changed]:
         raise _rule(f"부모 대비 바뀐 키는 정확히 1개여야 함: 바뀐 키 {diff}, changed={changed!r}")
 

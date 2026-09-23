@@ -406,3 +406,29 @@ def test_sweep_continues_after_run_failure(prepared, monkeypatch):
 def test_results_command_exit_0_without_experiments(workspace):
     assert cli.main(["results"]) == 0
     assert results.load_rows() == []
+
+
+# --- 비활성 키는 비교 대상이 아님 (3.3, 레드팀 #16) ---------------------------------------
+def _arima_cfg(exp_id: str, parent: str | None, changed: str | None, **arima_fields) -> dict:
+    cfg = {**json.loads(json.dumps(ROOT_CFG)), "id": exp_id, "parent": parent,
+           "changed": changed, "model": {"type": "arima"},
+           "arima": {"order": [2, 1, 2], "seasonal": "none", **arima_fields}}  # fmt: skip
+    del cfg["naive"]
+    return registry.resolve_config(cfg)
+
+
+def test_fourier_k_default_does_not_count_as_second_change():
+    parent = _arima_cfg("EXP-003", "EXP-001", "model.type")
+    child = _arima_cfg("EXP-004", "EXP-003", "arima.seasonal", seasonal="fourier")
+    assert child["arima.fourier_k"] == 3
+    registry.check_one_change(parent, child)
+    registry.check_one_change(child, parent | {"id": "EXP-005", "changed": "arima.seasonal"})
+
+
+def test_active_fourier_k_change_still_counts():
+    parent = _arima_cfg("EXP-004", "EXP-003", "arima.seasonal", seasonal="fourier")
+    both = _arima_cfg("EXP-005", "EXP-004", "arima.fourier_k", seasonal="fourier", fourier_k=5)
+    registry.check_one_change(parent, both)
+    two = both | {"arima.order": [1, 1, 1]}
+    with pytest.raises(TPError):
+        registry.check_one_change(parent, two)
