@@ -1,0 +1,21 @@
+id: EXP-006
+name: arima-202-diff144
+phase: dev
+parent: EXP-004
+changed: arima.order
+reason: EXP-004(diff144, d=1)는 계절 차분 위에 차분을 한 번 더 해 과차분으로 추정됨(토요일 MAE 186). 계절 차분만
+  남기려고 d를 1에서 0으로 바꾼다
+hypothesis: d=0이면 과차분이 풀려 EXP-004(142.42)보다 크게 좋아진다. 다만 전날 같은 시각을 기준으로 삼는 구조라 금→토
+  전환이 있는 토요일 오차는 lag-144처럼 남아 EXP-003(94.16)보다는 나쁘다
+zone_rank: 1
+model:
+  type: arima
+arima:
+  order:
+  - 2
+  - 0
+  - 2
+  seasonal: diff144
+runtime:
+  time_limit_min: 30
+  threads: 4
