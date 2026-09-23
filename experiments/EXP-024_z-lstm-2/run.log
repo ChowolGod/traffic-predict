@@ -1,0 +1,5 @@
+2026-09-23 18:46:01,109 INFO tp.exp.registry 실험 시작 EXP-024 (구역 5059, lstm)
+2026-09-23 18:46:26,304 INFO tp.exp.registry seed 0: best epoch 16 / 21
+2026-09-23 18:47:03,329 INFO tp.exp.registry seed 1: best epoch 28 / 33
+2026-09-23 18:47:32,726 INFO tp.exp.registry seed 2: best epoch 22 / 27
+2026-09-23 18:47:32,743 INFO tp.exp.registry 실험 완료 EXP-024: val MAE 95.2608

@@ -21,3 +21,11 @@ val 지표는 설정 **선택용**이라 낙관적으로 편향되어 있습니�
 | EXP-015 | full-arima-515 | full | EXP-009 | phase | arima | 1 | 5161 |  |  |  |  |  |  |  | failed | False | 14.0160 |
 | EXP-016 | full-lstm-init-e100 | full | EXP-011 | phase | lstm | 1 | 5161 | 110.8343 | 3.9510 | 160.0432 | 3.1561 | 0.3758 | 1008 | aeb67261 | completed | False | 117.6560 |
 | EXP-017 | full-arima-212 | full | EXP-003 | phase | arima | 1 | 5161 | 109.5478 |  | 164.5672 |  | 0.3715 | 1008 | aeb67261 | completed | False | 2.2340 |
+| EXP-018 | z-lag144-2 | full | EXP-013 | zone_rank | naive | 2 | 5059 | 213.4478 |  | 307.9601 |  | 1.0000 | 1008 | f89e8093 | completed | False | 1.2970 |
+| EXP-019 | z-lag144-3 | full | EXP-013 | zone_rank | naive | 3 | 5259 | 513.0997 |  | 898.8109 |  | 1.0000 | 1008 | 3adef90e | completed | False | 0.0310 |
+| EXP-020 | z-lag1-2 | full | EXP-014 | zone_rank | naive | 2 | 5059 | 99.9003 |  | 145.7529 |  | 0.4680 | 1008 | f89e8093 | completed | False | 1.2820 |
+| EXP-021 | z-lag1-3 | full | EXP-014 | zone_rank | naive | 3 | 5259 | 89.9451 |  | 132.1991 |  | 0.1753 | 1008 | 3adef90e | completed | False | 0.0310 |
+| EXP-022 | z-arima212-2 | full | EXP-017 | zone_rank | arima | 2 | 5059 | 94.5509 |  | 134.4790 |  | 0.4430 | 1008 | f89e8093 | completed | False | 2.2030 |
+| EXP-023 | z-arima212-3 | full | EXP-017 | zone_rank | arima | 3 | 5259 | 82.6111 |  | 121.8600 |  | 0.1610 | 1008 | 3adef90e | completed | False | 0.6870 |
+| EXP-024 | z-lstm-2 | full | EXP-016 | zone_rank | lstm | 2 | 5059 | 95.2608 | 4.4247 | 137.5885 | 5.8229 | 0.4463 | 1008 | f89e8093 | completed | False | 91.6400 |
+| EXP-025 | z-lstm-3 | full | EXP-016 | zone_rank | lstm | 3 | 5259 | 79.2732 | 0.3231 | 113.6754 | 0.9005 | 0.1545 | 1008 | 3adef90e | completed | False | 140.7030 |

@@ -1,0 +1,16 @@
+id: EXP-019
+name: z-lag144-3
+phase: full
+parent: EXP-013
+changed: zone_rank
+reason: 'F-11: 구역 1(5161)의 최종 설정을 그대로 2위(5059)·3위(5259) 구역에 적용해, 결론이 한 구역만의 특성인지 확인한다'
+hypothesis: 구역이 바뀌어도 계열 순위(ARIMA·LSTM > lag-1 > lag-144)는 유지된다. 업무 지구형인 5259에서는 dev처럼
+  LSTM의 주말 성적이 ARIMA보다 나빠질 수 있다
+zone_rank: 3
+model:
+  type: naive
+naive:
+  lag: 144
+runtime:
+  time_limit_min: 30
+  threads: 4
