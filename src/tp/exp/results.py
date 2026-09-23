@@ -299,7 +299,7 @@ def _mean_row(per_seed: list[dict]) -> dict:
 
 def _switching_rows(best: pd.DataFrame, dcfg: decision.DecisionConfig) -> list[dict]:
     """D-16: every candidate per (family, zone, horizon, delay) plus the two baselines per zone,
-    computed from saved val predictions (no retraining); `chosen` marks rule r1 (plan 3.3)."""
+    computed from saved val predictions (no retraining); `chosen` marks rule s1 (plan v2.11)."""
     series, rows = _Series(dcfg), []
     for zone in sorted(best["zone_rank"].unique()):
         zb = best[best["zone_rank"] == zone]
@@ -338,7 +338,7 @@ def _switching_rows(best: pd.DataFrame, dcfg: decision.DecisionConfig) -> list[d
         if r["family"] not in dict(BASELINES):
             groups.setdefault((r["family"], r["horizon"], r["delay_min"]), []).append(r)
     for group in groups.values():
-        hold, ratio = switching.choose_r1(group)
+        hold, ratio = switching.choose_s1(group)
         for r in group:
             r["chosen"] = r["hold_min"] == hold and r["on_ratio"] == ratio
     return rows
@@ -348,9 +348,9 @@ SWITCH_NOTE = (
     "용량 셀은 예측이 켜기 기준 이상이면 켜고, 켠 뒤 최소 H분 유지한 다음 예측이 기준 아래면 "
     "끕니다(목적 단계 4). 예측은 입력 마지막 칸이 끝난 시각 t − h + 1에 나온다고 보고, 켜는 데 "
     "걸리는 시간만큼 늦게 반영합니다. 3단계 리드타임은 t − h 기준이라 10분 차이가 납니다.\n\n"
-    "고른 조합(r1): 계열마다, 세 구역 **각각** 놓친 혼잡 시간이 기준(H 0분·1.0θ = 3단계 "
-    "경보)보다 나빠지지 않는 조합 중 세 구역 켜 둔 시간 합이 가장 짧은 것, 같으면 켜고 끈 "
-    "횟수가 적은 것. 후보는 `configs/decision.yaml`의 `switching`. LSTM은 시드별 결과의 "
+    "고른 조합(s1): 계열마다, 세 구역 **각각** 켜 둔 시간이 기준(H 0분·1.0θ = 3단계 경보)의 "
+    "1.2배 이하인 조합 중 세 구역 놓친 혼잡 시간 합이 가장 적은 것, 같으면 켜 둔 시간, 그다음 "
+    "켜고 끈 횟수가 적은 것. 후보는 `configs/decision.yaml`의 `switching`. LSTM은 시드별 결과의 "
     "평균±표준편차이고 선택은 평균으로 합니다. 전체 조합은 `results/switching.csv`에 있습니다. "
     "val은 선택용이라 낙관적입니다."
 )

@@ -91,38 +91,41 @@ def test_no_hold_no_delay_equals_step3_alarm(horizon):
     assert (on(pred, horizon=horizon, imputed=imputed) == expected).all()
 
 
-# --- (3) r1 선택 ---------------------------------------------------------------------------
+# --- (3) s1 선택 (v2.11, r1 대체) -----------------------------------------------------------
 def combo(hold, ratio, missed, on_min, switches):
     return [{"zone_rank": z, "hold_min": hold, "on_ratio": ratio, "missed_min": m,
              "on_min": o, "switches": s} for z, (m, o, s) in enumerate(zip(missed, on_min,
              switches, strict=True), start=1)]  # fmt: skip
 
 
-def test_r1_no_worse_in_every_zone_then_least_on_time_then_switches():
+def test_s1_least_missed_within_20_percent_more_on_time_in_every_zone():
     rows = (
-        combo(0, 1.0, missed=[10, 0], on_min=[100, 100], switches=[5, 5])  # baseline
-        + combo(0, 0.9, missed=[0, 10], on_min=[20, 30], switches=[1, 1])  # zone 2 worse
-        + combo(30, 1.0, missed=[10, 0], on_min=[90, 100], switches=[2, 2])  # total 190, 4
-        + combo(60, 0.8, missed=[0, 0], on_min=[100, 90], switches=[1, 1])  # total 190, 2
+        combo(0, 1.0, missed=[50, 50], on_min=[100, 100], switches=[5, 5])  # baseline
+        + combo(0, 0.8, missed=[0, 0], on_min=[130, 110], switches=[5, 5])  # zone 1 over 120
+        + combo(30, 1.0, missed=[40, 40], on_min=[110, 110], switches=[3, 3])  # missed 80
+        + combo(0, 0.9, missed=[20, 30], on_min=[120, 120], switches=[5, 5])  # missed 50: best
     )
-    assert switching.choose_r1(rows) == (60, 0.8)
+    assert switching.choose_s1(rows) == (0, 0.9)
 
 
-def test_r1_ties_go_to_smaller_hold_then_larger_ratio():
+def test_s1_ties_go_to_less_on_time_then_switches_then_smaller_hold_then_larger_ratio():
     rows = (
-        combo(0, 1.0, missed=[0], on_min=[50], switches=[1])
-        + combo(30, 0.9, missed=[0], on_min=[40], switches=[1])
-        + combo(30, 1.0, missed=[0], on_min=[40], switches=[1])
-        + combo(60, 1.0, missed=[0], on_min=[40], switches=[1])
+        combo(0, 1.0, missed=[50], on_min=[100], switches=[4])
+        + combo(60, 0.9, missed=[10], on_min=[110], switches=[2])
+        + combo(30, 0.9, missed=[10], on_min=[110], switches=[2])
+        + combo(30, 1.0, missed=[10], on_min=[110], switches=[2])
+        + combo(0, 0.8, missed=[10], on_min=[110], switches=[3])  # more switches
+        + combo(120, 0.8, missed=[10], on_min=[115], switches=[1])  # more on time
     )
-    assert switching.choose_r1(rows) == (30, 1.0)
+    assert switching.choose_s1(rows) == (30, 1.0)
 
 
-def test_r1_keeps_the_baseline_when_nothing_is_better():
-    rows = combo(0, 1.0, missed=[0], on_min=[50], switches=[3]) + combo(
-        30, 0.9, missed=[10], on_min=[10], switches=[1]
+def test_s1_keeps_the_baseline_when_every_other_combo_uses_too_much_on_time():
+    rows = combo(0, 1.0, missed=[50], on_min=[100], switches=[3]) + combo(
+        30, 0.8, missed=[0], on_min=[121], switches=[1]
     )
-    assert switching.choose_r1(rows) == (0, 1.0)
+    assert switching.choose_s1(rows) == (0, 1.0)
+    assert switching.ON_TIME_ALLOWANCE == 0.2
 
 
 # --- (6) D-14 switching 검증 (E-2001) ------------------------------------------------------

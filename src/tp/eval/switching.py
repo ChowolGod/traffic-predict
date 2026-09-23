@@ -4,6 +4,9 @@ import numpy as np
 
 from tp.eval.decision import SLOT_MIN, episodes
 
+# (v2.11) rule s1: candidates may keep the cell on at most 20% longer than the baseline.
+ON_TIME_ALLOWANCE = 0.2
+
 
 def lag_slots(horizon: int, delay_min: int) -> int:
     """ŷ_t is available at t - h + 1 and acts d slots later, so slot t can only use ŷ_{t - L}."""
@@ -59,22 +62,25 @@ def switching_metrics(
     }
 
 
-def choose_r1(rows: list[dict]) -> tuple[int, float]:
-    """Rule r1 for one (family, horizon, delay). Rows: one per (zone, hold_min, on_ratio) with
-    missed_min, on_min, switches (LSTM: seed means). A combination qualifies when every zone
-    misses no more than the baseline (hold 0, ratio 1.0); then least total on time, fewest
-    total switches, smaller hold, larger ratio."""
+def choose_s1(rows: list[dict]) -> tuple[int, float]:
+    """Rule s1 (plan v2.11) for one (family, horizon, delay). Rows: one per (zone, hold_min,
+    on_ratio) with missed_min, on_min, switches (LSTM: seed means). A combination qualifies
+    when every zone keeps the cell on at most (1 + ON_TIME_ALLOWANCE) x the baseline (hold 0,
+    ratio 1.0); then least total missed minutes, least total on time, fewest total switches,
+    smaller hold, larger ratio. The baseline always qualifies."""
     combos: dict[tuple[int, float], dict[int, dict]] = {}
     for r in rows:
         combos.setdefault((int(r["hold_min"]), float(r["on_ratio"])), {})[int(r["zone_rank"])] = r
     baseline = combos[(0, 1.0)]
+    limit = 1 + ON_TIME_ALLOWANCE
 
     def qualifies(zones: dict[int, dict]) -> bool:
-        return all(zones[z]["missed_min"] <= baseline[z]["missed_min"] + 1e-9 for z in baseline)
+        return all(zones[z]["on_min"] <= limit * baseline[z]["on_min"] + 1e-9 for z in baseline)
 
     def order(item):
         (hold, ratio), zones = item
-        return (sum(r["on_min"] for r in zones.values()),
-                sum(r["switches"] for r in zones.values()), hold, -ratio)  # fmt: skip
+        total = {key: sum(r[key] for r in zones.values())
+                 for key in ("missed_min", "on_min", "switches")}  # fmt: skip
+        return (total["missed_min"], total["on_min"], total["switches"], hold, -ratio)
 
     return min((item for item in combos.items() if qualifies(item[1])), key=order)[0]
