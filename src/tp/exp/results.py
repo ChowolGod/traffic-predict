@@ -282,19 +282,41 @@ SWITCH_METRICS = ("missed_min", "missed_episodes", "on_min", "switches")
 BASELINES = [("always_on", "항상 켬"), ("oracle", "미래를 아는 경우")]
 
 
-def _val(folder: Path) -> pd.DataFrame:
+def val_predictions(folder: Path) -> pd.DataFrame:
     pred = pd.read_parquet(folder / "predictions.parquet")
-    return pred[pred["segment"] == "val"].sort_values(["seed", "time_utc"])
+    return pred[pred["segment"] == "val"]
 
 
-def _mean_row(per_seed: list[dict]) -> dict:
-    """Metrics of one candidate; LSTM seeds -> mean and ddof=1 std (D-16)."""
+def seed_arrays(pred: pd.DataFrame) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """(y_true, y_pred, is_imputed) per seed, each in time order."""
+    return [
+        (g["y_true"].to_numpy(), g["y_pred"].to_numpy(), g["is_imputed"].to_numpy(bool))
+        for _, g in pred.sort_values(["seed", "time_utc"]).groupby("seed", sort=True)
+    ]
+
+
+def switch_metrics(seeds: list, thr: float, horizon: int, hold: int, ratio: float, delay: int,
+                   merge_gap: int) -> dict:  # fmt: skip
+    """D-16 metrics of one on/off candidate; LSTM seeds -> mean and ddof=1 std (M-19)."""
+    per_seed = [
+        switching.switching_metrics(
+            switching.simulate(p, imp, thr, horizon, hold, ratio, delay), y, imp, thr, merge_gap
+        )
+        for y, p, imp in seeds
+    ]
     row = {"episodes": per_seed[0]["episodes"]}
     for key in SWITCH_METRICS:
         mean, std = _mean_std([m[key] for m in per_seed])
         row[key] = mean if len(per_seed) > 1 else per_seed[0][key]
         row[f"{key}_std"] = std if len(per_seed) > 1 else None
     return row
+
+
+def baseline_metrics(seeds: list, thr: float, merge_gap: int) -> dict[str, dict]:
+    """Always-on and oracle baselines from the observed series (any seed has the same y)."""
+    y, _, imp = seeds[0]
+    states = {"always_on": switching.always_on(len(y)), "oracle": switching.oracle(y, imp, thr)}
+    return {f: switching.switching_metrics(s, y, imp, thr, merge_gap) for f, s in states.items()}
 
 
 def _switching_rows(best: pd.DataFrame, dcfg: decision.DecisionConfig) -> list[dict]:
@@ -308,31 +330,19 @@ def _switching_rows(best: pd.DataFrame, dcfg: decision.DecisionConfig) -> list[d
         if thr is None:
             continue
         for _, b in zb.iterrows():
-            val = _val(next(config.EXPERIMENTS_DIR.glob(f"{b['exp_id']}_*")))
-            seeds = [
-                (g["y_true"].to_numpy(), g["y_pred"].to_numpy(), g["is_imputed"].to_numpy(bool))
-                for _, g in val.groupby("seed", sort=True)
-            ]
+            seeds = seed_arrays(
+                val_predictions(next(config.EXPERIMENTS_DIR.glob(f"{b['exp_id']}_*")))
+            )
             h = int(b["horizon"])
             for delay, hold, ratio in product(dcfg.delay_min, dcfg.hold_min, dcfg.on_ratio):
-                per_seed = [
-                    switching.switching_metrics(
-                        switching.simulate(p, imp, thr, h, hold, ratio, delay),
-                        y, imp, thr, dcfg.merge_gap,
-                    )
-                    for y, p, imp in seeds
-                ]  # fmt: skip
                 rows.append({"family": b["family"], "zone_rank": zone, "square_id": square,
                              "exp_id": b["exp_id"], "horizon": h, "delay_min": delay,
                              "hold_min": hold, "on_ratio": ratio, "chosen": False,
-                             **_mean_row(per_seed)})  # fmt: skip
-        y, _, imp = seeds[0]
-        states = {"always_on": switching.always_on(len(y)),
-                  "oracle": switching.oracle(y, imp, thr)}  # fmt: skip
-        for family, state in states.items():
-            metrics_ = switching.switching_metrics(state, y, imp, thr, dcfg.merge_gap)
+                             **switch_metrics(seeds, thr, h, hold, ratio, delay,
+                                              dcfg.merge_gap)})  # fmt: skip
+        for family, m in baseline_metrics(seeds, thr, dcfg.merge_gap).items():
             rows.append({"family": family, "zone_rank": zone, "square_id": square,
-                         "chosen": False, **metrics_})  # fmt: skip
+                         "chosen": False, **m})  # fmt: skip
     groups: dict[tuple, list[dict]] = {}
     for r in rows:
         if r["family"] not in dict(BASELINES):

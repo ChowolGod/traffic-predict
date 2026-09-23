@@ -73,7 +73,10 @@ def final_yaml(mapping: dict) -> str:
     return str(path)
 
 
-FINAL = {1: {"naive_144": "EXP-001", "naive_1": "EXP-002", "arima": "EXP-003", "lstm": "EXP-004"}}
+H1 = {"naive_144": "EXP-001", "naive_1": "EXP-002", "arima": "EXP-003", "lstm": "EXP-004"}
+H3 = {"naive_144": "EXP-005", "naive_1": "EXP-006", "arima": "EXP-007", "lstm": "EXP-008"}
+FINAL = {1: {1: H1, 3: H3}}
+FAMILY_ORDER = ["naive_144", "naive_1", "arima", "lstm"]
 
 
 @pytest.fixture
@@ -99,58 +102,134 @@ def full_ws(workspace, monkeypatch):
     return workspace
 
 
+def _config_of(exp_id: str) -> dict:
+    path = config.CONFIGS_DIR / "experiments" / f"{exp_id}.yaml"
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def v2_ws(full_ws, monkeypatch):
+    """full_ws plus horizon-3 children. The 3-day fixture cannot hold lag 1008 or horizon 6,
+    so test uses horizons (1, 3) and four families here; the real constants are checked below."""
+    for family, parent in H1.items():
+        child = _config_of(parent)
+        child.update(id=H3[family], name=f"{family.replace('_', '')}-h3", parent=parent,
+                     changed="horizon", horizon=3, reason="r", hypothesis="h")  # fmt: skip
+        assert cli.main(["run", "--config", write_exp(child)]) == 0
+    monkeypatch.setattr(testrun, "HORIZONS", (1, 3))
+    four = {k: v for k, v in testrun.FAMILIES.items() if k != "naive_1008"}
+    monkeypatch.setattr(testrun, "FAMILIES", four)
+    return full_ws
+
+
 def out_dir():
     return config.RESULTS_DIR / "test"
 
 
-# --- 완료 조건 (3) 결과 표 ---------------------------------------------------------------
-def test_happy_path_writes_results_and_lock(full_ws):
-    assert cli.main(["test", "--final", final_yaml(FINAL), "--confirm"]) == 0
-    table = pd.read_csv(out_dir() / "metrics.csv")
-    assert list(table["family"]) == ["naive_144", "naive_1", "arima", "lstm"]
-    for col in ("square_id", "mae", "mae_std", "rmse", "rmse_std", "rel_mae",
-                "mae_diff_vs_lag144", "ci_low", "ci_high"):  # fmt: skip
-        assert col in table.columns
-    lag = table.set_index("family").loc["naive_144"]
-    assert lag["rel_mae"] == pytest.approx(1.0) and lag["mae_diff_vs_lag144"] == 0.0
-    assert (table["ci_low"] <= table["mae_diff_vs_lag144"] + 1e-12).all()
-    assert (table["mae_diff_vs_lag144"] <= table["ci_high"] + 1e-12).all()
-    assert not np.isnan(table.set_index("family").loc["lstm", "mae_std"])
+def run_ok(final=FINAL) -> pd.DataFrame:
+    assert cli.main(["test", "--final", final_yaml(final), "--confirm"]) == 0
+    return pd.read_csv(out_dir() / "metrics.csv")
+
+
+# --- 계획 상수 (v2.12: 거리 10·30·60분, 계열 5개) ------------------------------------------------
+def test_repo_constants_match_plan():
+    assert testrun.HORIZONS == (1, 3, 6)
+    assert list(testrun.FAMILIES) == ["naive_144", "naive_1", "naive_1008", "arima", "lstm"]
+
+
+# --- 완료 조건 (3)(7) 결과 표 -------------------------------------------------------------------
+def test_happy_path_writes_results_and_lock(v2_ws):
+    table = run_ok()
+    assert list(table.columns) == testrun.COLUMNS
+    assert list(zip(table["horizon"], table["family"], strict=True)) == [
+        (h, f) for h in (1, 3) for f in FAMILY_ORDER
+    ]
+    by = table.set_index(["horizon", "family"])
+    for h in (1, 3):
+        assert by.loc[(h, "naive_144"), "rel_mae"] == pytest.approx(1.0)
+        assert by.loc[(h, "naive_144"), "diff_vs_lag144"] == 0.0
+        assert by.loc[(h, "naive_1"), "diff_vs_lag1"] == 0.0
+        assert not np.isnan(by.loc[(h, "lstm"), "mae_std"])
+        assert not np.isnan(by.loc[(h, "lstm"), "dec_missed_std"])
+    for ref in ("lag144", "lag1"):
+        assert (table[f"ci_{ref}_low"] <= table[f"diff_vs_{ref}"] + 1e-12).all()
+        assert (table[f"diff_vs_{ref}"] <= table[f"ci_{ref}_high"] + 1e-12).all()
+    assert (table["dec_episodes"] >= 0).all() and table["dec_threshold"].nunique() == 1
     pred = pd.read_parquet(out_dir() / "predictions.parquet")
-    assert list(pred.columns) == ["family", "zone_rank", "square_id", "time_utc", "y_true",
-                                  "y_pred", "seed", "is_imputed"]  # fmt: skip
+    assert list(pred.columns) == ["family", "zone_rank", "square_id", "horizon", "time_utc",
+                                  "y_true", "y_pred", "seed", "is_imputed"]  # fmt: skip
     assert pred["time_utc"].dt.tz_convert(config.TZ).dt.date.astype(str).unique().tolist() == [
         "2013-11-06"
     ]
     lock = json.loads((out_dir() / "LOCK").read_text(encoding="utf-8"))
     assert set(lock) == {"evaluated_at", "final", "git_commit"}
-    assert "선택용" in (out_dir() / "metrics.md").read_text(encoding="utf-8")
+    assert lock["final"] == {"1": {"1": H1, "3": H3}}
+    md = (out_dir() / "metrics.md").read_text(encoding="utf-8")
+    for text in ("선택용", "어제 같은 시각", "마지막 관측값", "지연 0분", "미래를 아는 경우"):
+        assert text in md
+
+
+# --- 완료 조건 (6) LSTM 구간 = 시드별 절대오차의 칸별 평균 ---------------------------------------
+def test_lstm_interval_uses_mean_of_per_seed_absolute_errors(v2_ws):
+    table = run_ok().set_index(["horizon", "family"])
+    pred = pd.read_parquet(out_dir() / "predictions.parquet")
+    pred = pred[(pred["horizon"] == 1) & ~pred["is_imputed"]]
+
+    def err(family):
+        p = pred[pred["family"] == family].assign(e=lambda d: (d["y_true"] - d["y_pred"]).abs())
+        return p.groupby("time_utc")["e"].mean()
+
+    lstm_err, ref = err("lstm"), err("naive_144")
+    days = np.array(ref.index.tz_convert(config.TZ).date, dtype=object)
+    expected = block_bootstrap_diff_ci(lstm_err.loc[ref.index].to_numpy(), ref.to_numpy(), days)
+    row = table.loc[(1, "lstm")]
+    got = (row["diff_vs_lag144"], row["ci_lag144_low"], row["ci_lag144_high"])
+    assert got == pytest.approx(expected)
+    assert row["mae"] == pytest.approx(lstm_err.mean())  # same quantity as the reported MAE
+
+
+# --- 완료 조건 (8) 켜기/끄기: val에서 고른 조합을 그대로 적용 -----------------------------
+def test_switching_applies_the_val_choice_without_reselecting(v2_ws):
+    assert cli.main(["results"]) == 0
+    val = pd.read_csv(config.RESULTS_DIR / "switching.csv")
+    chosen = val[val["chosen"]].groupby(["family", "horizon", "delay_min"])
+    val_choice = chosen[["hold_min", "on_ratio"]].first()
+    run_ok()
+    test = pd.read_csv(out_dir() / "switching.csv")
+    models = test[~test["family"].isin(["always_on", "oracle"])]
+    names = {v: k for k, v in testrun.FAMILIES.items()}
+    assert len(models) == len(val_choice)  # one zone: one row per (family, horizon, delay)
+    for (family, h, delay), r in val_choice.iterrows():
+        row = models[(models["family"] == names[family]) & (models["horizon"] == h)
+                     & (models["delay_min"] == delay)]  # fmt: skip
+        assert (row["hold_min"].iloc[0], row["on_ratio"].iloc[0]) == (r["hold_min"], r["on_ratio"])
+    assert {"always_on", "oracle"} <= set(test["family"])
 
 
 # --- 완료 조건 (1) 두 번째 실행은 거부 ---------------------------------------------------------
-def test_second_run_e4005(full_ws):
-    assert cli.main(["test", "--final", final_yaml(FINAL), "--confirm"]) == 0
+def test_second_run_e4005(v2_ws):
+    run_ok()
     with pytest.raises(TPError) as exc:
         testrun.run_test(final_yaml(FINAL), confirm=True)
     assert exc.value.code == "E-4005"
 
 
-def test_experiments_after_lock_are_post_test(full_ws):
-    assert cli.main(["test", "--final", final_yaml(FINAL), "--confirm"]) == 0
-    cfg = exp("EXP-005", "arima-111", "EXP-003", "arima.order", model={"type": "arima"},
+def test_experiments_after_lock_are_post_test(v2_ws):
+    run_ok()
+    cfg = exp("EXP-009", "arima-111", "EXP-003", "arima.order", model={"type": "arima"},
               arima={"order": [1, 1, 1], "seasonal": "none"})  # fmt: skip
     assert cli.main(["run", "--config", write_exp(cfg)]) == 0
-    folder = next(config.EXPERIMENTS_DIR.glob("EXP-005_*"))
+    folder = next(config.EXPERIMENTS_DIR.glob("EXP-009_*"))
     assert json.loads((folder / "meta.json").read_text(encoding="utf-8"))["post_test"] is True
 
 
 # --- 완료 조건 (2) --confirm 없음·dirty 거부, 아무것도 쓰지 않음 ---------------------------
-def test_requires_confirm(full_ws):
+def test_requires_confirm(v2_ws):
     assert cli.main(["test", "--final", final_yaml(FINAL)]) == 1
     assert not out_dir().exists()
 
 
-def test_dirty_rejected(full_ws, monkeypatch):
+def test_dirty_rejected(v2_ws, monkeypatch):
     monkeypatch.setattr(registry, "git_state", lambda: ("abc1234", True))
     with pytest.raises(TPError) as exc:
         testrun.run_test(final_yaml(FINAL), confirm=True)
@@ -158,20 +237,21 @@ def test_dirty_rejected(full_ws, monkeypatch):
     assert not out_dir().exists()
 
 
-# --- E-4006 최종 설정 검증 --------------------------------------------------------------------
+# --- E-4006 최종 설정 검증 (완료 조건 5 포함) ----------------------------------------------------
 @pytest.mark.parametrize(
     "mutate",
     [
-        pytest.param(lambda f: f[1].pop("lstm"), id="missing-family"),
-        pytest.param(lambda f: f[1].update(arima="EXP-002"), id="family-type-mismatch"),
-        pytest.param(lambda f: f[1].update(naive_1="EXP-001"), id="lag-mismatch"),
-        pytest.param(lambda f: f[1].update(lstm="EXP-099"), id="unknown-experiment"),
-        pytest.param(lambda f: f.update({2: dict(f[1])}), id="zone-count-not-k"),
+        pytest.param(lambda f: f[1][1].pop("lstm"), id="missing-family"),
+        pytest.param(lambda f: f[1].pop(3), id="missing-horizon"),
+        pytest.param(lambda f: f[1][1].update(arima="EXP-002"), id="family-type-mismatch"),
+        pytest.param(lambda f: f[1][1].update(naive_1="EXP-001"), id="lag-mismatch"),
+        pytest.param(lambda f: f[1][1].update(lstm="EXP-099"), id="unknown-experiment"),
+        pytest.param(lambda f: f[1][3].update(arima="EXP-003"), id="horizon-mismatch"),
+        pytest.param(lambda f: f.update({2: f[1]}), id="zone-count-not-k"),
     ],
 )
-def test_e4006_final_config(full_ws, mutate):
-    final = json.loads(json.dumps(FINAL))
-    final = {int(k): v for k, v in final.items()}
+def test_e4006_final_config(v2_ws, mutate):
+    final = {1: {1: dict(H1), 3: dict(H3)}}
     mutate(final)
     with pytest.raises(TPError) as exc:
         testrun.run_test(final_yaml(final), confirm=True)
@@ -179,8 +259,8 @@ def test_e4006_final_config(full_ws, mutate):
     assert not out_dir().exists()
 
 
-def test_e4006_not_selection_rule_best(full_ws):
-    cfg = exp("EXP-005", "arima-111", "EXP-003", "arima.order", model={"type": "arima"},
+def test_e4006_not_selection_rule_best(v2_ws):
+    cfg = exp("EXP-009", "arima-111", "EXP-003", "arima.order", model={"type": "arima"},
               arima={"order": [1, 1, 1], "seasonal": "none"})  # fmt: skip
     assert cli.main(["run", "--config", write_exp(cfg)]) == 0
 
@@ -188,35 +268,43 @@ def test_e4006_not_selection_rule_best(full_ws):
         folder = next(config.EXPERIMENTS_DIR.glob(f"{exp_id}_*"))
         return json.loads((folder / "metrics.json").read_text(encoding="utf-8"))["val"]["mae"]
 
-    worse = "EXP-003" if val_mae("EXP-003") > val_mae("EXP-005") else "EXP-005"
-    better = "EXP-005" if worse == "EXP-003" else "EXP-003"
+    worse = "EXP-003" if val_mae("EXP-003") > val_mae("EXP-009") else "EXP-009"
+    better = "EXP-009" if worse == "EXP-003" else "EXP-003"
     with pytest.raises(TPError) as exc:
-        testrun.run_test(final_yaml({1: {**FINAL[1], "arima": worse}}), confirm=True)
+        testrun.run_test(final_yaml({1: {1: {**H1, "arima": worse}, 3: H3}}), confirm=True)
     assert exc.value.code == "E-4006" and better in exc.value.message
-    assert cli.main(["test", "--final", final_yaml({1: {**FINAL[1], "arima": better}}),
-                     "--confirm"]) == 0  # fmt: skip
+    run_ok({1: {1: {**H1, "arima": better}, 3: H3}})
 
 
-def test_e4006_missing_model_file(full_ws):
-    folder = next(config.EXPERIMENTS_DIR.glob("EXP-003_*"))
+def test_e4006_missing_model_file(v2_ws):
+    folder = next(config.EXPERIMENTS_DIR.glob("EXP-007_*"))
     (folder / "model" / "arima_params.json").unlink()
     with pytest.raises(TPError) as exc:
         testrun.run_test(final_yaml(FINAL), confirm=True)
     assert exc.value.code == "E-4006"
 
 
-def test_e4006_dev_experiment(full_ws):
-    root = {**json.loads(json.dumps(BASE)), "id": "EXP-005", "name": "dev-root", "phase": "dev",
+def test_e4006_dev_experiment(v2_ws):
+    root = {**json.loads(json.dumps(BASE)), "id": "EXP-009", "name": "dev-root", "phase": "dev",
             "parent": None, "changed": None}  # fmt: skip
     assert cli.main(["prepare", "--phase", "dev"]) == 0
     assert cli.main(["run", "--config", write_exp(root)]) == 0
+    final = {1: {1: {**H1, "naive_144": "EXP-009"}, 3: H3}}
     with pytest.raises(TPError) as exc:
-        testrun.run_test(final_yaml({1: {**FINAL[1], "naive_144": "EXP-005"}}), confirm=True)
+        testrun.run_test(final_yaml(final), confirm=True)
     assert exc.value.code == "E-4006"
 
 
+def test_e2001_bad_decision_config_writes_nothing(v2_ws):
+    (config.CONFIGS_DIR / "decision.yaml").write_text("threshold_ratio: 2\n", encoding="utf-8")
+    with pytest.raises(TPError) as exc:
+        testrun.run_test(final_yaml(FINAL), confirm=True)
+    assert exc.value.code == "E-2001"
+    assert not out_dir().exists()
+
+
 # --- 원자성: 계산 중 실패하면 아무것도 쓰지 않음 ---------------------------------------------
-def test_failure_during_prediction_writes_nothing(full_ws, monkeypatch):
+def test_failure_during_prediction_writes_nothing(v2_ws, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("boom")
 
@@ -228,7 +316,7 @@ def test_failure_during_prediction_writes_nothing(full_ws, monkeypatch):
 
 
 # --- 재학습 없이 저장된 모델을 사용 ------------------------------------------------------------
-def test_no_training_during_test(full_ws, monkeypatch):
+def test_no_training_during_test(v2_ws, monkeypatch):
     from tp.models import arima
 
     def forbidden(*a, **k):
@@ -236,32 +324,34 @@ def test_no_training_during_test(full_ws, monkeypatch):
 
     monkeypatch.setattr(lstm, "train_lstm", forbidden)
     monkeypatch.setattr(arima, "fit_arima", forbidden)
-    assert cli.main(["test", "--final", final_yaml(FINAL), "--confirm"]) == 0
+    run_ok()
 
 
-# --- F-11: K=3이면 구역별 행과 평균 행 ---------------------------------------------------------
-def test_f11_three_zones_rows_and_mean(full_ws):
+# --- F-11: K=3이면 구역별 행과 (계열, 거리)마다 평균 행 ------------------------------------------
+def test_f11_three_zones_rows_and_mean(v2_ws):
     phases = config.CONFIGS_DIR / "phases.yaml"
     data = yaml.safe_load(phases.read_text(encoding="utf-8"))
     data["full"]["k"] = 3
     phases.write_text(yaml.safe_dump(data), encoding="utf-8")
     assert cli.main(["prepare", "--phase", "full"]) == 0
-    next_id = 5
-    final = {1: dict(FINAL[1]), 2: {}, 3: {}}
-    for family, parent in FINAL[1].items():
-        start = f"EXP-{next_id:03d}"
-        registry.sweep(parent, "zone_rank", "[2, 3]", start, f"z-{family.replace('_', '')}",
-                       "r", "h")  # fmt: skip
-        final[2][family], final[3][family] = start, f"EXP-{next_id + 1:03d}"
-        next_id += 2
-    assert cli.main(["test", "--final", final_yaml(final), "--confirm"]) == 0
-    table = pd.read_csv(out_dir() / "metrics.csv")
+    next_id = 9
+    final = {1: {1: dict(H1), 3: dict(H3)}, 2: {1: {}, 3: {}}, 3: {1: {}, 3: {}}}
+    for h, mapping in ((1, H1), (3, H3)):
+        for family, parent in mapping.items():
+            start = f"EXP-{next_id:03d}"
+            name = f"z-{family.replace('_', '')}-h{h}"
+            registry.sweep(parent, "zone_rank", "[2, 3]", start, name, "r", "h")
+            final[2][h][family], final[3][h][family] = start, f"EXP-{next_id + 1:03d}"
+            next_id += 2
+    table = run_ok(final)
     zone_rows = table[table["zone_rank"] != "mean"]
     assert sorted(zone_rows["zone_rank"].astype(int).unique()) == [1, 2, 3]
-    assert zone_rows["square_id"].nunique() == 3 and len(zone_rows) == 12
-    means = table[table["zone_rank"] == "mean"].set_index("family")["rel_mae"]
-    expected = zone_rows.groupby("family")["rel_mae"].mean()
-    assert list(means.index) == ["naive_144", "naive_1", "arima", "lstm"]
-    for family in means.index:
-        assert means[family] == pytest.approx(expected[family])
-    assert means["naive_144"] == pytest.approx(1.0)
+    assert zone_rows["square_id"].nunique() == 3 and len(zone_rows) == 3 * 2 * 4
+    means = table[table["zone_rank"] == "mean"].set_index(["horizon", "family"])["rel_mae"]
+    expected = zone_rows.groupby(["horizon", "family"])["rel_mae"].mean()
+    assert len(means) == 2 * 4
+    for key in means.index:
+        assert means[key] == pytest.approx(expected[key])
+    assert means[(1, "naive_144")] == pytest.approx(1.0)
+    switch = pd.read_csv(out_dir() / "switching.csv")
+    assert sorted(switch["zone_rank"].unique()) == [1, 2, 3]

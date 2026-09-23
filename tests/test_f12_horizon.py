@@ -187,16 +187,3 @@ def test_lag_1008_is_allowed():
     from tests.test_f08_registry import ROOT_CFG
 
     assert registry.resolve_config({**ROOT_CFG, "naive": {"lag": 1008}})["naive.lag"] == 1008
-
-
-# --- F-09 선택 규칙: 같은 horizon끼리, v2 개정 전 test는 horizon=1만 --------------------------
-def test_testrun_rejects_non_h1_until_f09_revision(monkeypatch):
-    from tp.exp import testrun
-
-    fake = registry.Experiment("EXP-009", config.ROOT, {"status": "completed", "post_test": False,
-                               "compare_group": "g"}, {"phase": "full", "zone_rank": 1,
-                               "model.type": "naive", "naive.lag": 144, "horizon": 6})  # fmt: skip
-    with pytest.raises(TPError) as exc:
-        testrun._validate({"zones": {1: {f: "EXP-009" for f in testrun.FAMILIES}}},
-                          {"EXP-009": fake}, k=1)  # fmt: skip
-    assert exc.value.code == "E-4006" and "horizon" in exc.value.message
