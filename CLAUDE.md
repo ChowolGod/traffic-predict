@@ -1,8 +1,8 @@
 # traffic-predict
 
-밀라노 모바일 트래픽 예측 실험입니다. 인터넷 트래픽 총량 상위 구역에서 10분 뒤 값을 예측하고, seasonal naive, ARIMA, LSTM을 비교합니다.
+밀라노 모바일 트래픽 예측 실험입니다. 인터넷 트래픽 총량 상위 3개 격자 칸(약 235m, 지역)에서 10·30·60분 뒤 값을 예측하고, 기준선(10분 전 값·어제 같은 시각·지난주 같은 시각), ARIMA, LSTM을 예측 오차와 결정 수준 지표로 비교합니다.
 
-- 기획서(단일 원천): `docs/traffic-predict_기획서.md` (동결 v1). 기획서와 다르게 바꿔야 하면 코드를 고치기 전에 변경 통제 표로 영향을 보고합니다.
+- 기획서(단일 원천): `docs/traffic-predict_기획서.md` (동결 v2.2). 기획서와 다르게 바꿔야 하면 코드를 고치기 전에 변경 통제 표로 영향을 보고합니다.
 - 프로필: 데이터·ML 실험
 - 스택: Python 3.12(uv), pandas, numpy, pyarrow, statsmodels, torch(CPU), matplotlib, pyyaml, filelock, pytest, ruff
 
