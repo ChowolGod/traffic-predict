@@ -103,7 +103,13 @@ def test_repo_decision_yaml_matches_plan():
     ],
 )
 def test_e2001_bad_decision_config(tmp_path, change):
-    data = {"threshold_ratio": 0.7, "peak_quantile": 0.99, "merge_gap": 1, "report_horizon": 6}
+    data = {
+        "threshold_ratio": 0.7,
+        "peak_quantile": 0.99,
+        "merge_gap": 1,
+        "report_horizon": 6,
+        "switching": {"hold_min": [0], "on_ratio": [1.0], "delay_min": [0]},
+    }
     data.update(change)
     data = {k: v for k, v in data.items() if v is not None}
     path = tmp_path / "decision.yaml"

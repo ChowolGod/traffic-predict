@@ -3,3 +3,8 @@ threshold_ratio: 0.7
 peak_quantile: 0.99
 merge_gap: 1 # congestion runs split by <= this many slots count as one episode
 report_horizon: 6 # horizon (steps) whose decision metrics are reported in results/horizon.md
+# (v2.10) F-14 step-4 on/off candidates. r1 baseline hold 0 / ratio 1.0 must be included.
+switching:
+  hold_min: [0, 30, 60, 120] # minimum on time after switching on
+  on_ratio: [1.0, 0.9, 0.8] # switch on when forecast >= on_ratio x threshold
+  delay_min: [0, 10] # cell start-up time (environment assumption, reported separately)

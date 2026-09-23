@@ -63,6 +63,10 @@ class DecisionConfig:  # D-14
     peak_quantile: float
     merge_gap: int
     report_horizon: int
+    # (v2.10) step-4 on/off candidates (F-14)
+    hold_min: tuple[int, ...] = (0, 30, 60, 120)
+    on_ratio: tuple[float, ...] = (1.0, 0.9, 0.8)
+    delay_min: tuple[int, ...] = (0, 10)
 
 
 def load_decision(path: Path | None = None) -> DecisionConfig:
@@ -81,7 +85,34 @@ def load_decision(path: Path | None = None) -> DecisionConfig:
             raise TPError("E-2001", f"결정 설정 오류: {key}가 없음")
         if not ok(raw[key]):
             raise TPError("E-2001", f"결정 설정 오류: {key} 값 {raw[key]!r}")
-    return DecisionConfig(**{key: raw[key] for key in checks})
+    return DecisionConfig(**{key: raw[key] for key in checks}, **_switching(raw.get("switching")))
+
+
+def _is_int(v: object) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _switching(raw: object) -> dict:
+    """D-14 `switching`: candidate lists; must contain the r1 baseline (hold 0, ratio 1.0)."""
+    if not isinstance(raw, dict):
+        raise TPError("E-2001", "결정 설정 오류: switching이 없음")
+    checks = {
+        "hold_min": (lambda v: _is_int(v) and 0 <= v <= 240 and v % 10 == 0, 0),
+        "on_ratio": (
+            lambda v: isinstance(v, int | float) and not isinstance(v, bool) and 0 < v <= 1,
+            1.0,
+        ),  # fmt: skip
+        "delay_min": (lambda v: _is_int(v) and 0 <= v <= 60 and v % 10 == 0, None),
+    }
+    out = {}
+    for key, (ok, required) in checks.items():
+        values = raw.get(key)
+        if not isinstance(values, list) or not values or len(set(values)) != len(values):
+            raise TPError("E-2001", f"결정 설정 오류: switching.{key}는 중복 없는 목록: {values!r}")
+        if not all(ok(v) for v in values) or (required is not None and required not in values):
+            raise TPError("E-2001", f"결정 설정 오류: switching.{key} 값 {values!r}")
+        out[key] = tuple(float(v) if key == "on_ratio" else v for v in values)
+    return out
 
 
 def _bad(message: str) -> TPError:

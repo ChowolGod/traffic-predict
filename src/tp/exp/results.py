@@ -2,6 +2,7 @@
 
 import json
 import logging
+from itertools import product
 from pathlib import Path
 
 import matplotlib
@@ -14,7 +15,7 @@ import yaml  # noqa: E402
 
 from tp import config  # noqa: E402
 from tp.errors import TPError  # noqa: E402
-from tp.eval import decision  # noqa: E402
+from tp.eval import decision, switching  # noqa: E402
 from tp.exp import selection  # noqa: E402
 from tp.prep import series as series_mod  # noqa: E402
 
@@ -272,6 +273,131 @@ def _horizon_figure(best: pd.DataFrame, path: Path) -> None:
     plt.close(fig)
 
 
+SWITCH_COLUMNS = [
+    "family", "zone_rank", "square_id", "exp_id", "horizon", "delay_min", "hold_min", "on_ratio",
+    "episodes", "missed_min", "missed_min_std", "missed_episodes", "missed_episodes_std",
+    "on_min", "on_min_std", "switches", "switches_std", "chosen",
+]  # fmt: skip
+SWITCH_METRICS = ("missed_min", "missed_episodes", "on_min", "switches")
+BASELINES = [("always_on", "항상 켬"), ("oracle", "미래를 아는 경우")]
+
+
+def _val(folder: Path) -> pd.DataFrame:
+    pred = pd.read_parquet(folder / "predictions.parquet")
+    return pred[pred["segment"] == "val"].sort_values(["seed", "time_utc"])
+
+
+def _mean_row(per_seed: list[dict]) -> dict:
+    """Metrics of one candidate; LSTM seeds -> mean and ddof=1 std (D-16)."""
+    row = {"episodes": per_seed[0]["episodes"]}
+    for key in SWITCH_METRICS:
+        mean, std = _mean_std([m[key] for m in per_seed])
+        row[key] = mean if len(per_seed) > 1 else per_seed[0][key]
+        row[f"{key}_std"] = std if len(per_seed) > 1 else None
+    return row
+
+
+def _switching_rows(best: pd.DataFrame, dcfg: decision.DecisionConfig) -> list[dict]:
+    """D-16: every candidate per (family, zone, horizon, delay) plus the two baselines per zone,
+    computed from saved val predictions (no retraining); `chosen` marks rule r1 (plan 3.3)."""
+    series, rows = _Series(dcfg), []
+    for zone in sorted(best["zone_rank"].unique()):
+        zb = best[best["zone_rank"] == zone]
+        square = int(zb["square_id"].iloc[0])
+        thr = series.threshold("full", square)
+        if thr is None:
+            continue
+        for _, b in zb.iterrows():
+            val = _val(next(config.EXPERIMENTS_DIR.glob(f"{b['exp_id']}_*")))
+            seeds = [
+                (g["y_true"].to_numpy(), g["y_pred"].to_numpy(), g["is_imputed"].to_numpy(bool))
+                for _, g in val.groupby("seed", sort=True)
+            ]
+            h = int(b["horizon"])
+            for delay, hold, ratio in product(dcfg.delay_min, dcfg.hold_min, dcfg.on_ratio):
+                per_seed = [
+                    switching.switching_metrics(
+                        switching.simulate(p, imp, thr, h, hold, ratio, delay),
+                        y, imp, thr, dcfg.merge_gap,
+                    )
+                    for y, p, imp in seeds
+                ]  # fmt: skip
+                rows.append({"family": b["family"], "zone_rank": zone, "square_id": square,
+                             "exp_id": b["exp_id"], "horizon": h, "delay_min": delay,
+                             "hold_min": hold, "on_ratio": ratio, "chosen": False,
+                             **_mean_row(per_seed)})  # fmt: skip
+        y, _, imp = seeds[0]
+        states = {"always_on": switching.always_on(len(y)),
+                  "oracle": switching.oracle(y, imp, thr)}  # fmt: skip
+        for family, state in states.items():
+            metrics_ = switching.switching_metrics(state, y, imp, thr, dcfg.merge_gap)
+            rows.append({"family": family, "zone_rank": zone, "square_id": square,
+                         "chosen": False, **metrics_})  # fmt: skip
+    groups: dict[tuple, list[dict]] = {}
+    for r in rows:
+        if r["family"] not in dict(BASELINES):
+            groups.setdefault((r["family"], r["horizon"], r["delay_min"]), []).append(r)
+    for group in groups.values():
+        hold, ratio = switching.choose_r1(group)
+        for r in group:
+            r["chosen"] = r["hold_min"] == hold and r["on_ratio"] == ratio
+    return rows
+
+
+SWITCH_NOTE = (
+    "용량 셀은 예측이 켜기 기준 이상이면 켜고, 켠 뒤 최소 H분 유지한 다음 예측이 기준 아래면 "
+    "끕니다(목적 단계 4). 예측은 입력 마지막 칸이 끝난 시각 t − h + 1에 나온다고 보고, 켜는 데 "
+    "걸리는 시간만큼 늦게 반영합니다. 3단계 리드타임은 t − h 기준이라 10분 차이가 납니다.\n\n"
+    "고른 조합(r1): 계열마다, 세 구역 **각각** 놓친 혼잡 시간이 기준(H 0분·1.0θ = 3단계 "
+    "경보)보다 나빠지지 않는 조합 중 세 구역 켜 둔 시간 합이 가장 짧은 것, 같으면 켜고 끈 "
+    "횟수가 적은 것. 후보는 `configs/decision.yaml`의 `switching`. LSTM은 시드별 결과의 "
+    "평균±표준편차이고 선택은 평균으로 합니다. 전체 조합은 `results/switching.csv`에 있습니다. "
+    "val은 선택용이라 낙관적입니다."
+)
+
+
+def _switch_line(square: int, label: str, name: str, r) -> str:
+    cells = [
+        _num(r["missed_min"], r.get("missed_min_std")),
+        f"{_num(r['missed_episodes'], r.get('missed_episodes_std'))}/{int(r['episodes'])}",
+        _num(r["on_min"], r.get("on_min_std")),
+        _num(r["switches"], r.get("switches_std")),
+    ]
+    return f"| {square} | {label} | {name} | " + " | ".join(cells) + " |"
+
+
+def _switching_table(rows: list[dict], report_horizon: int, delays: tuple[int, ...]) -> str:
+    frame = pd.DataFrame(rows, columns=SWITCH_COLUMNS)
+    labels = {f: label for f, _, label, _, _ in FAMILIES}
+    lines = ["# 켜기/끄기 시뮬레이션 (val, full 단계)", "", SWITCH_NOTE, "",
+             f"아래는 {report_horizon * 10}분 뒤 예측 기준입니다. 놓친 혼잡은 "
+             "'놓친 횟수/전체 구간', 시간은 분입니다.", ""]  # fmt: skip
+    for delay in delays:
+        lines += [f"## 지연 {delay}분", "",
+                  "| 구역 | 계열 | 조합 | 놓친 혼잡 시간 | 놓친 혼잡 | 켜 둔 시간 | 켜고 끈 횟수 |",
+                  "|---|---|---|---|---|---|---|"]  # fmt: skip
+        sub = frame[(frame["horizon"] == report_horizon) & (frame["delay_min"] == delay)]
+        if sub.empty:
+            lines.append(f"| | ({report_horizon * 10}분 뒤 실험 없음) | | | | | |")
+        for zone in sorted(frame["zone_rank"].unique()):
+            zf = sub[sub["zone_rank"] == zone]
+            square = int(frame.loc[frame["zone_rank"] == zone, "square_id"].iloc[0])
+            for family, _, _, _, _ in FAMILIES:
+                ff = zf[zf["family"] == family]
+                if ff.empty:
+                    continue
+                base = ff[(ff["hold_min"] == 0) & (ff["on_ratio"] == 1.0)].iloc[0]
+                pick = ff[ff["chosen"].astype(bool)].iloc[0]
+                name = f"선택 H {int(pick['hold_min'])}분·{pick['on_ratio']:.1f}θ"
+                lines.append(_switch_line(square, labels[family], "기준 H 0분·1.0θ", base))
+                lines.append(_switch_line(square, labels[family], name, pick))
+            for family, label in BASELINES:
+                r = frame[(frame["zone_rank"] == zone) & (frame["family"] == family)].iloc[0]
+                lines.append(_switch_line(square, label, "기준선", r))
+        lines.append("")
+    return "\n".join(lines)
+
+
 def rebuild_results(strict: bool = True) -> None:
     """strict=False (after `run`) keeps going without decision metrics if D-14 is invalid."""
     try:
@@ -299,3 +425,13 @@ def rebuild_results(strict: bool = True) -> None:
     report = dcfg.report_horizon if dcfg else 6
     (config.RESULTS_DIR / "horizon.md").write_text(_horizon_table(best, report), encoding="utf-8")
     _horizon_figure(best, config.RESULTS_DIR / "figures" / "horizon_mae.png")
+    if dcfg is None:
+        return
+    switch_rows = _switching_rows(best, dcfg)
+    if switch_rows:
+        pd.DataFrame(switch_rows, columns=SWITCH_COLUMNS).to_csv(
+            config.RESULTS_DIR / "switching.csv", index=False
+        )
+        (config.RESULTS_DIR / "switching.md").write_text(
+            _switching_table(switch_rows, dcfg.report_horizon, dcfg.delay_min), encoding="utf-8"
+        )
