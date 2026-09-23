@@ -22,7 +22,7 @@ from tp.data import zones
 from tp.errors import TPError
 from tp.eval import metrics
 from tp.exp import results
-from tp.models import naive
+from tp.models import arima, naive
 from tp.prep import series as series_mod
 from tp.prep.split import cut_until
 from tp.seed import set_seed
@@ -353,7 +353,15 @@ def _run_naive(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.Da
     return _pred_frame(rows, y_pred.to_numpy(), seed=-1)
 
 
-MODELS = {"naive": _run_naive}
+def _run_arima(data: pd.DataFrame, cfg: dict, folder: Path, check_time) -> pd.DataFrame:
+    params = arima.fit_arima(data[data["segment"] == "train"], cfg)
+    check_time()
+    arima.save_params(folder / "model" / "arima_params.json", params)
+    y_pred = arima.predict_arima(params, data)
+    return _pred_frame(data.loc[y_pred.index], y_pred.to_numpy(), seed=-1)
+
+
+MODELS = {"naive": _run_naive, "arima": _run_arima}
 
 
 def _reference_times(index: dict[str, Experiment], cfg: dict) -> pd.DatetimeIndex | None:
